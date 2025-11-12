@@ -1,0 +1,302 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace PlantPollutionGame
+{
+    public class GameManager : MonoBehaviour
+    {
+        [Header("Managers")]
+        public PlantManager plantManager;
+        public PollutionManager pollutionManager;
+        public GridSystem gridSystem;
+
+        [Header("Game State")]
+        public GameState gameState = GameState.HeartPlacement;
+
+        [Header("Configuration")]
+        public int gridWidth = 20;
+        public int gridHeight = 20;
+        public int heartStartLeaf = 3;
+        public int heartStartRoot = 3;
+        public int heartStartFruit = 3;
+
+        [Header("Tick Rates")]
+        public float plantTickRate = 0.5f;
+        public float pollutionTickRate = 7.0f;
+
+        [Header("Pollution Sources Setup")]
+        public List<SourceSetup> sourcesSetup = new List<SourceSetup>();
+
+        // UI Events
+        public System.Action OnGameWon;
+        public System.Action OnGameLost;
+        public System.Action<string> OnErrorMessage;
+
+        private Coroutine plantTickCoroutine;
+        private Coroutine pollutionTickCoroutine;
+
+        [System.Serializable]
+        public class SourceSetup
+        {
+            public Vector2Int position;
+            public PollutionType pollutionType;
+            public SourceTier tier;
+            public float hp;
+            public float emissionRate;
+            public float tickInterval;
+            public float dormantDuration;
+        }
+
+        private void Awake()
+        {
+            // Initialize grid system
+            if (gridSystem == null)
+            {
+                gridSystem = new GridSystem();
+            }
+
+            gridSystem.Initialize(gridWidth, gridHeight);
+
+            // Set references
+            if (plantManager != null)
+            {
+                plantManager.gridSystem = gridSystem;
+                plantManager.pollutionManager = pollutionManager;
+            }
+
+            if (pollutionManager != null)
+            {
+                pollutionManager.gridSystem = gridSystem;
+                pollutionManager.plantManager = plantManager;
+            }
+        }
+
+        private void Start()
+        {
+            InitializeGame();
+        }
+
+        public void InitializeGame()
+        {
+            // Place pollution sources (predetermined positions)
+            foreach (SourceSetup sourceSetup in sourcesSetup)
+            {
+                pollutionManager.CreateSource(
+                    sourceSetup.position,
+                    sourceSetup.pollutionType,
+                    sourceSetup.tier,
+                    sourceSetup.hp,
+                    sourceSetup.emissionRate,
+                    sourceSetup.tickInterval,
+                    sourceSetup.dormantDuration
+                );
+            }
+
+            // Start heart placement mode
+            gameState = GameState.HeartPlacement;
+            Debug.Log("Place the Heart to begin the game!");
+        }
+
+        public bool IsValidHeartPlacement(Vector2Int pos)
+        {
+            return gridSystem.IsInBounds(pos) &&
+                   gridSystem.GetTileState(pos) == TileState.Empty;
+        }
+
+        public void OnPlayerPlacesHeart(Vector2Int pos)
+        {
+            if (!IsValidHeartPlacement(pos))
+            {
+                OnErrorMessage?.Invoke("Cannot place Heart here!");
+                Debug.LogWarning("Invalid Heart placement position");
+                return;
+            }
+
+            // Initialize Heart
+            plantManager.InitializeHeart(pos, heartStartLeaf, heartStartRoot, heartStartFruit);
+
+            // Start game loops
+            StartGameLoops();
+
+            gameState = GameState.Playing;
+            Debug.Log("Game started!");
+        }
+
+        private void StartGameLoops()
+        {
+            // Start plant tick coroutine
+            if (plantTickCoroutine != null)
+            {
+                StopCoroutine(plantTickCoroutine);
+            }
+            plantTickCoroutine = StartCoroutine(PlantTickCoroutine());
+
+            // Start pollution tick coroutine
+            if (pollutionTickCoroutine != null)
+            {
+                StopCoroutine(pollutionTickCoroutine);
+            }
+            pollutionTickCoroutine = StartCoroutine(PollutionTickCoroutine());
+        }
+
+        private IEnumerator PlantTickCoroutine()
+        {
+            while (gameState == GameState.Playing)
+            {
+                plantManager.UpdatePlants();
+                CheckWinCondition();
+
+                yield return new WaitForSeconds(plantTickRate);
+            }
+        }
+
+        private IEnumerator PollutionTickCoroutine()
+        {
+            while (gameState == GameState.Playing)
+            {
+                pollutionManager.UpdatePollutionSpread();
+                pollutionManager.CheckHeartOverwhelm();
+
+                yield return new WaitForSeconds(pollutionTickRate);
+            }
+        }
+
+        public void CheckWinCondition()
+        {
+            if (pollutionManager.activeSources.Count == 0)
+            {
+                TriggerWin();
+            }
+        }
+
+        public void TriggerWin()
+        {
+            if (gameState != GameState.Won)
+            {
+                gameState = GameState.Won;
+                StopGameLoops();
+                OnGameWon?.Invoke();
+                Debug.Log("Victory! All pollution sources destroyed!");
+            }
+        }
+
+        public void TriggerLoss()
+        {
+            if (gameState != GameState.Lost)
+            {
+                gameState = GameState.Lost;
+                StopGameLoops();
+                OnGameLost?.Invoke();
+                Debug.Log("Defeat! The Heart has been overwhelmed by pollution!");
+            }
+        }
+
+        private void StopGameLoops()
+        {
+            if (plantTickCoroutine != null)
+            {
+                StopCoroutine(plantTickCoroutine);
+                plantTickCoroutine = null;
+            }
+
+            if (pollutionTickCoroutine != null)
+            {
+                StopCoroutine(pollutionTickCoroutine);
+                pollutionTickCoroutine = null;
+            }
+        }
+
+        public void PauseGame()
+        {
+            if (gameState == GameState.Playing)
+            {
+                gameState = GameState.Paused;
+                Time.timeScale = 0f;
+            }
+        }
+
+        public void ResumeGame()
+        {
+            if (gameState == GameState.Paused)
+            {
+                gameState = GameState.Playing;
+                Time.timeScale = 1f;
+            }
+        }
+
+        public void RestartGame()
+        {
+            // Stop coroutines
+            StopGameLoops();
+
+            // Clear all data
+            plantManager.allPlants.Clear();
+            plantManager.heartPlant = null;
+            pollutionManager.pollutedTiles.Clear();
+            pollutionManager.activeSources.Clear();
+
+            // Reinitialize
+            gridSystem.Initialize(gridWidth, gridHeight);
+            InitializeGame();
+        }
+
+        // Public methods for manual player actions
+        public void PlayerManualSprout(Vector2Int plantPos, Vector2Int targetPos)
+        {
+            if (gameState != GameState.Playing)
+            {
+                return;
+            }
+
+            Plant plant = gridSystem.GetEntity<Plant>(plantPos);
+            if (plant != null)
+            {
+                plantManager.ManualSprout(plant, targetPos);
+            }
+        }
+
+        public void PlayerPrune(Vector2Int plantPos)
+        {
+            if (gameState != GameState.Playing)
+            {
+                return;
+            }
+
+            Plant plant = gridSystem.GetEntity<Plant>(plantPos);
+            if (plant != null && !plant.isHeart)
+            {
+                plantManager.DeletePlant(plant, fromPollution: false);
+            }
+        }
+
+        public void PlayerRemoveGrafts(Vector2Int plantPos, int leaf, int root, int fruit)
+        {
+            if (gameState != GameState.Playing)
+            {
+                return;
+            }
+
+            Plant plant = gridSystem.GetEntity<Plant>(plantPos);
+            if (plant != null)
+            {
+                plantManager.RemoveGrafts(plant, leaf, root, fruit);
+            }
+        }
+
+        public void PlayerApplyGrafts(Vector2Int plantPos)
+        {
+            if (gameState != GameState.Playing)
+            {
+                return;
+            }
+
+            Plant plant = gridSystem.GetEntity<Plant>(plantPos);
+            if (plant != null)
+            {
+                plantManager.ApplyGrafts(plant);
+            }
+        }
+    }
+}
+
