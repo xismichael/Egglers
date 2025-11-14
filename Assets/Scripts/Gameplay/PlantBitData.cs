@@ -1,12 +1,12 @@
 using UnityEngine;
 
-
 namespace Egglers
 {
     [CreateAssetMenu(fileName = "PlantBitData", menuName = "Scriptable Objects/PlantBitData")]
     public class PlantBitData : ScriptableObject
     {
         [Header("Component Multipliers")]
+
         [Tooltip("Base multiplier for leaf power (attack damage)")]
         public float leafMultiplier = 1.0f;
 
@@ -16,17 +16,23 @@ namespace Egglers
         [Tooltip("Base multiplier for fruit power (resource storage)")]
         public float fruitMultiplier = 1.0f;
 
-        [Header("Cost Scaling")]
+
+
+        [Header("Sprouting Costs")]
+
         [Tooltip("Base cost to sprout a new plant")]
         public float baseSproutCost = 10f;
 
         [Tooltip("Scaling factor based on total components")]
-        public float componentCostScaling = 0.2f;
+        public float naturalSproutCostScaling = 0.2f;
 
         [Tooltip("Additional scaling factor for grafted components")]
-        public float graftedCostScaling = 0.3f;
+        public float graftedSproutCostScaling = 0.3f;
+
+
 
         [Header("Grafting Costs")]
+
         [Tooltip("Base cost to apply grafts")]
         public float baseGraftCost = 5.0f;
 
@@ -39,16 +45,32 @@ namespace Egglers
         [Tooltip("Cooldown duration after grafting operations")]
         public float graftCooldownDuration = 5.0f;
 
+        [Tooltip("Amount max component increases each generation")]
+        public int maxComponentIncrease = 1;
+
+        [Tooltip("Amount max component increases each generation based on max component of parents")]
+        public float maxComponentBonus = 1.5f;
+
+
+
+        [Header("Budding")]
+
+        [Tooltip("Amount of ticks of growth necessary until bud grows")]
+        public int fullGrowthTicks = 60;
+
+        [Tooltip("Amount of energy spent for a bud to grow one tick")]
+        public int tickGrowthCost = 10;
+
         // [Header("Tick Rates")]
         // [Tooltip("How often plants update (in seconds)")]
         // public float plantTickRate = 0.5f;
 
-        [Header("Auto-Sprout")]
-        [Tooltip("Enable delayed auto-sprout (false = immediate)")]
-        public bool delayedAutoSprout = false;
+        // [Header("Auto-Sprout")]
+        // [Tooltip("Enable delayed auto-sprout (false = immediate)")]
+        // public bool delayedAutoSprout = false;
 
-        [Tooltip("Delay before auto-sprouting (if delayed enabled)")]
-        public float autoSproutDelay = 1.0f;
+        // [Tooltip("Delay before auto-sprouting (if delayed enabled)")]
+        // public float autoSproutDelay = 1.0f;
     }
 }
 

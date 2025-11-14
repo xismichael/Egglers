@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Unity.Collections;
 using UnityEngine;
 
 namespace Egglers
@@ -13,10 +12,15 @@ namespace Egglers
 
     public class PlantBit
     {
-        // Position on grid
+        // Basic data
         public Vector2Int position;
+        public PlantBitData data;
+        private PlantBitManager plantManager;
+        public bool isHeart;
+        public PlantBitPhase phase;
 
-        public PlantBitData plantBitData;
+        // Bud growth tracking
+        public int growthProgress;
 
         // Natural components (exponential scaling)
         public int leafCount;
@@ -28,57 +32,105 @@ namespace Egglers
         public int graftedRootCount;
         public int graftedFruitCount;
 
-        // Capacity and hierarchy
-        // public int maxComponentAmount;
-        public PlantBit parentPlant;
+        // Hierarchy
+        public PlantBit parent;
         public List<PlantBit> children = new();
 
-        // State
-        public PlantBitPhase phase;
-        // public bool hasAutoSprouted;
-        public bool isHeart;
+        public int maxComponentCount;
+        public float sproutCost;
 
-        // Cooldowns
-        public float graftingCooldown;
-
-        // Bud growth tracking
-        public int growthProgress;
-        public int growthDuration;
-        public float resourcePerTick;
-        public float sproutGrowthCost;
+        public float attackDamage;
+        public float extractionRate;
+        public float energyStorage;
 
         // Derived stats (calculated)
-        public float attackDamage;
-        public float resourceExtractionRate;
-        public float resourceStorage;
-
-        // References to managers (set externally)
-        public PlantBitManager plantManager;
-        // public GridSystem gridSystem;
-
-        // Configuration values (set from config)
-        // public float leafMultiplier = 1.0f;
-        // public float rootMultiplier = 1.0f;
-        // public float fruitMultiplier = 1.0f;
-
         public int TotalNaturalComponents => leafCount + rootCount + fruitCount;
         public int TotalGraftedComponents => graftedLeafCount + graftedRootCount + graftedFruitCount;
         public int TotalComponents => TotalNaturalComponents + TotalGraftedComponents;
 
-        public PlantBit()
+        // public bool hasAutoSprouted;
+
+        // Cooldowns
+        // public float graftingCooldown;
+        
+        // public int growthDuration;
+        // public float resourcePerTick;
+
+        public PlantBit(Vector2Int posInit, PlantBitData newData, PlantBitManager manager, bool isHeartInit = false, int startLeaf = 0, int startRoot = 0, int startFruit = 0)
         {
+            position = posInit;
+            data = newData;
+            plantManager = manager;
+            isHeart = isHeartInit;
             phase = PlantBitPhase.Bud;
-            // hasAutoSprouted = false;
-            isHeart = false;
-            graftingCooldown = 0f;
+            
             growthProgress = 0;
+
+            leafCount = startLeaf;
+            rootCount = startRoot;
+            fruitCount = startFruit;
+
+            graftedLeafCount = 0;
+            graftedRootCount = 0;
+            graftedFruitCount = 0;
+
+            // Setup Heirarchy
+            parent = null;
+
+            maxComponentCount = CalculateMaxComponentCount();
+            sproutCost = CalculateSproutCost();
+
+            attackDamage = CalculateStat(leafCount, graftedLeafCount, data.leafMultiplier);
+            extractionRate = CalculateStat(rootCount, graftedRootCount, data.rootMultiplier);
+            energyStorage = CalculateStat(fruitCount, graftedFruitCount, data.fruitMultiplier);
+
+            // IM LEAVING THIS LINE OUT ASSUMING YOU WILL MAKE A GROWTH LIMIT LOWER IN THE PLANT BIT DATA FOR THE HEART SO THE SPROUT TRIGGERS AUTOMATICALLY FIRST TICK UPDATE
+            // if (isHeartInit) growthProgress = data;
         }
 
-        public void RecalculateStats()
+        public PlantBit(Vector2Int posInit, PlantBitData newData, PlantBit parentBit)
         {
-            attackDamage = CalculateStat(leafCount, graftedLeafCount, leafMultiplier);
-            resourceExtractionRate = CalculateStat(rootAmount, graftedRootAmount, rootMultiplier);
-            resourceStorage = CalculateStat(fruitAmount, graftedFruitAmount, fruitMultiplier);
+            position = posInit;
+            data = newData;
+            plantManager = parentBit.plantManager;
+            isHeart = false;
+            phase = PlantBitPhase.Bud;
+
+            growthProgress = 0;
+
+            // Inherit all components as natural
+            leafCount = parentBit.leafCount + parentBit.graftedLeafCount;
+            rootCount = parentBit.rootCount + parentBit.graftedRootCount;
+            fruitCount = parentBit.fruitCount + parentBit.graftedFruitCount;
+
+            graftedLeafCount = 0;
+            graftedRootCount = 0;
+            graftedFruitCount = 0;
+
+            // Setup Heirarchy
+            parent = parentBit;
+            parentBit.children.Add(this);
+
+            maxComponentCount = CalculateMaxComponentCount();
+            sproutCost = CalculateSproutCost();
+
+            attackDamage = CalculateStat(leafCount, graftedLeafCount, data.leafMultiplier);
+            extractionRate = CalculateStat(rootCount, graftedRootCount, data.rootMultiplier);
+            energyStorage = CalculateStat(fruitCount, graftedFruitCount, data.fruitMultiplier);
+        }
+
+        private int CalculateMaxComponentCount()
+        {
+            int bonus = Mathf.Max(data.maxComponentIncrease, Mathf.CeilToInt(parent.TotalComponents * data.maxComponentBonus));
+            return parent.TotalComponents + bonus;
+        }
+
+        private float CalculateSproutCost()
+        {
+            float naturalScalar = 1 + TotalNaturalComponents * data.naturalSproutCostScaling;
+            float graftedScalar = 1 + TotalGraftedComponents * data.graftedSproutCostScaling;
+            float cost = data.baseSproutCost * naturalScalar * graftedScalar;
+            return cost;
         }
 
         private float CalculateStat(int natural, int grafted, float baseMultiplier)
@@ -92,10 +144,19 @@ namespace Egglers
             return naturalPower + graftedPower;
         }
 
+        public void UpdateStats()
+        {
+            attackDamage = CalculateStat(leafCount, graftedLeafCount, data.leafMultiplier);
+            extractionRate = CalculateStat(rootCount, graftedRootCount, data.rootMultiplier);
+            energyStorage = CalculateStat(fruitCount, graftedFruitCount, data.fruitMultiplier);
+            sproutCost = CalculateSproutCost();
+        }
+
         public void TransitionToGrownPhase()
         {
             phase = PlantBitPhase.Grown;
-            RecalculateStats();
+            UpdateStats();
+            plantManager.AddMaxEnergy(energyStorage);
 
             // One-time auto-sprout
             // if (!hasAutoSprouted)
@@ -121,13 +182,135 @@ namespace Egglers
 
             void sprout(GameTile tile)
             {
-                if (tile.GetPlantBit() != null)
+                if (tile.GetPlantBit() != null && plantManager.RemoveEnergy(sproutCost))
                 {
                     plantManager.CreateSprout(this, tile.position);
                 }
             }
 
             plantManager.gameGrid.ForAllNeighbors(sprout, position);
+        }
+
+        public void TickUpdate()
+        {
+            if (phase == PlantBitPhase.Bud)
+            {
+                if (plantManager.RemoveEnergy(data.tickGrowthCost))
+                {
+                    growthProgress++;
+                    if (growthProgress >= data.fullGrowthTicks)
+                    {
+                        TransitionToGrownPhase();
+                    }
+                }
+            }
+            else
+            {
+                ExtractEnergy();
+            }
+
+            // // Collect source damage (batched)
+            // Dictionary<PollutionSource, float> sourceDamage = new Dictionary<PollutionSource, float>();
+
+            // foreach (Plant plant in allPlants.Values)
+            // {
+            //     if (plant.phase == PlantPhase.Bud)
+            //     {
+            //         // Bud growth
+            //         if (CanAfford(plant.resourcePerTick))
+            //         {
+            //             SpendResource(plant.resourcePerTick);
+            //             plant.growthProgress++;
+
+            //             if (plant.growthProgress >= plant.growthDuration)
+            //             {
+            //                 plant.TransitionToGrownPhase();
+            //                 UpdateMaxStorage(); // Bud became grown, update cap
+            //             }
+            //         }
+            //         // Else: growth pauses
+
+            //         // Check overwhelm (uses parent's dynamic ATD)
+            //         plant.CheckOverwhelm();
+            //     }
+            //     else if (plant.phase == PlantPhase.Grown)
+            //     {
+            //         // Extract resources and reduce pollution
+            //         plant.ExtractFromAdjacentPollution();
+
+            //         // Collect source damage
+            //         List<Vector2Int> neighbors = gridSystem.GetNeighbors(plant.position, includeDiagonal: false);
+            //         foreach (Vector2Int neighborPos in neighbors)
+            //         {
+            //             if (gridSystem.GetTileState(neighborPos) == TileState.PollutionSource)
+            //             {
+            //                 PollutionSource source = gridSystem.GetEntity<PollutionSource>(neighborPos);
+            //                 if (source != null)
+            //                 {
+            //                     float pollutionAtSource = pollutionManager.GetPollutionLevelAt(source.position);
+            //                     if (plant.attackDamage > pollutionAtSource)
+            //                     {
+            //                         float margin = plant.attackDamage - pollutionAtSource;
+            //                         float damage = margin * 0.1f;
+
+            //                         if (!sourceDamage.ContainsKey(source))
+            //                         {
+            //                             sourceDamage[source] = 0;
+            //                         }
+            //                         sourceDamage[source] += damage;
+            //                     }
+            //                 }
+            //             }
+            //         }
+
+            //         // Check overwhelm (except Heart)
+            //         if (!plant.isHeart)
+            //         {
+            //             plant.CheckOverwhelm();
+            //         }
+            //     }
+
+            //     // Update cooldowns
+            //     if (plant.graftingCooldown > 0)
+            //     {
+            //         plant.graftingCooldown -= plantTickRate;
+            //         if (plant.graftingCooldown < 0) plant.graftingCooldown = 0;
+            //     }
+            // }
+
+            // // Apply batched source damage
+            // foreach (var kvp in sourceDamage)
+            // {
+            //     kvp.Key.TakeDamage(kvp.Value);
+            // }
+        }
+
+        public void ExtractEnergy()
+        {
+            void extract(GameTile tile)
+            {
+                if (tile.pollution >= 0 && attackDamage > tile.pollution)
+                {
+                    float resourceGain = tile.pollution * 0.1f * extractionRate;
+
+                    // Apply type modifier
+                    // resourceGain *= tile.GetExtractionMultiplier();
+
+                    plantManager.AddEnergy(resourceGain);
+
+                    // Reduce pollution
+                    // float pollutionReduction = (attackDamage - tile.attackDamage) * 0.05f;
+                    // tile.TakeDamage(pollutionReduction);
+
+                    // Check if tile should be removed
+                    // if (tile.ShouldBeRemoved())
+                    // {
+                    //     plantManager.RemovePollutionTile(neighborPos);
+                    // }
+                }
+            }
+
+            plantManager.gameGrid.ForAllNeighbors(extract, position);
         }
 
         // public bool IsValidSproutTarget(Vector2Int target)
@@ -232,39 +415,6 @@ namespace Egglers
         //         }
         //     }
         // }
-
-        public void ExtractFromAdjacentPollution()
-        {
-            List<Vector2Int> neighbors = gridSystem.GetNeighbors(position, includeDiagonal: false);
-
-            foreach (Vector2Int neighborPos in neighbors)
-            {
-                if (gridSystem.GetTileState(neighborPos) == TileState.Pollution)
-                {
-                    PollutionTile tile = gridSystem.GetEntity<PollutionTile>(neighborPos);
-                    if (tile != null && attackDamage > tile.attackDamage)
-                    {
-                        // Extract resources
-                        float resourceGain = tile.totalPollutionLevel * 0.1f * resourceExtractionRate;
-
-                        // Apply type modifier
-                        resourceGain *= tile.GetExtractionMultiplier();
-
-                        plantManager.AddResource(resourceGain);
-
-                        // Reduce pollution
-                        float pollutionReduction = (attackDamage - tile.attackDamage) * 0.05f;
-                        tile.TakeDamage(pollutionReduction);
-
-                        // Check if tile should be removed
-                        if (tile.ShouldBeRemoved())
-                        {
-                            plantManager.RemovePollutionTile(neighborPos);
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
