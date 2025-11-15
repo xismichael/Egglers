@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using UnityEngine;
 
 namespace Egglers
@@ -10,14 +11,17 @@ namespace Egglers
         [Tooltip("Base multiplier for leaf power (attack damage)")]
         public float leafMultiplier = 1.0f;
 
-        [Tooltip("Base multiplier for root power (resource extraction)")]
+        [Tooltip("Base multiplier for root power (energy extraction)")]
         public float rootMultiplier = 1.0f;
 
-        [Tooltip("Base multiplier for fruit power (resource storage)")]
+        [Tooltip("Base multiplier for fruit power (energy storage)")]
         public float fruitMultiplier = 1.0f;
 
+        [Tooltip("Bonus power multiplier for natural components: strength = numNatComps ^ this")]
+        public float naturalComponentPower = 1.3f;
 
 
+        // baseSproutCost + [total natural components] * naturalSproutScaling + [total grafted components] * graftedSproutCostScaling
         [Header("Sprouting Costs")]
 
         [Tooltip("Base cost to sprout a new plant")]
@@ -50,6 +54,13 @@ namespace Egglers
 
         [Tooltip("Amount max component increases each generation based on max component of parents")]
         public float maxComponentBonus = 1.5f;
+
+
+
+        [Header("Extraction Parameters")]
+        
+        [Tooltip("Multiplication factor for base pollution yield: yield = this * poll * eRate")]
+        public float extractionPollutionFactor = 0.1f;
 
 
 

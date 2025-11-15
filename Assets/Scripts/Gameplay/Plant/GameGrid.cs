@@ -14,6 +14,18 @@ namespace Egglers
             width = xSize;
             height = ySize;
             grid = new GameTile[xSize, ySize];
+            InitializeGrid();
+        }
+
+        private void InitializeGrid()
+        {
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    grid[x, y] = new GameTile(new Vector2Int(x, y));
+                }
+            }
         }
 
         public void ForAllNeighbors(Action<GameTile> func, Vector2Int pos, bool includeDiagonal = false)

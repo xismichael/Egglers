@@ -12,8 +12,8 @@ namespace Egglers
         [SerializeField] private PlantBitData heartBitData;
 
         [SerializeField] private Vector2Int startingHeartPos = Vector2Int.zero;
-        [SerializeField] private int gridWidth = 10;
-        [SerializeField] private int gridHeight = 10;
+        [SerializeField] public int gridWidth = 10;
+        [SerializeField] public int gridHeight = 10;
         [SerializeField] private float tickDurationSeconds = 1.0f;
         [SerializeField] private float startingEnergy = 10.0f;
         [SerializeField] private float startingMaxEnergy = 100.0f;
@@ -22,6 +22,7 @@ namespace Egglers
         [SerializeField] private int heartStartingLeaf = 3;
         [SerializeField] private int heartStartingRoot = 3;
         [SerializeField] private int heartStartingFruit = 3;
+        [SerializeField] private int heartStartingMaxComponent = 5;
 
         // Grid reference
         public GameGrid gameGrid;
@@ -49,8 +50,8 @@ namespace Egglers
         private void Awake()
         {
             // graftBuffer = new GraftBuffer(0, 0, 0, false);
-            gameGrid = new GameGrid(gridWidth, gridHeight);
-            waitForTick = new WaitForSeconds(tickDurationSeconds);
+            gameGrid = new GameGrid(gridWidth, gridHeight); // THIS IS THE PROBLEM LINE, NOT SURE WHAT IS WRONG
+            // waitForTick = new WaitForSeconds(tickDurationSeconds);
         }
 
         private void Start()
@@ -58,10 +59,10 @@ namespace Egglers
             InitializeHeart();
             maxEnergy = startingMaxEnergy;
             currentEnergy = startingEnergy;
-            StartCoroutine(UpdateTickRoutine());
+            // StartCoroutine(UpdateTickRoutine());
         }
 
-        private void UpdatePlants(PlantBit plantBit)
+        public void UpdatePlants(PlantBit plantBit)
         {
             plantBit.TickUpdate();
 
@@ -71,14 +72,14 @@ namespace Egglers
             }
         }
 
-        private IEnumerator UpdateTickRoutine()
-        {
-            while (true)
-            {
-                UpdatePlants(heart);
-                yield return waitForTick;
-            }
-        }
+        // private IEnumerator UpdateTickRoutine()
+        // {
+        //     while (true)
+        //     {
+        //         UpdatePlants(heart);
+        //         yield return waitForTick;
+        //     }
+        // }
 
         private void OnDestroy()
         {
@@ -87,7 +88,7 @@ namespace Egglers
 
         public void InitializeHeart()
         {
-            heart = new PlantBit(startingHeartPos, heartBitData, this, true, heartStartingLeaf, heartStartingRoot, heartStartingFruit);
+            heart = new PlantBit(startingHeartPos, heartBitData, this, true, heartStartingLeaf, heartStartingRoot, heartStartingFruit, heartStartingMaxComponent);
 
             gameGrid.GetTileAtPosition(startingHeartPos).SetPlantBit(heart);
 

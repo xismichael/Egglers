@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Mono.Cecil;
 using UnityEngine;
 
 namespace Egglers
@@ -56,7 +57,7 @@ namespace Egglers
         // public int growthDuration;
         // public float resourcePerTick;
 
-        public PlantBit(Vector2Int posInit, PlantBitData newData, PlantBitManager manager, bool isHeartInit = false, int startLeaf = 0, int startRoot = 0, int startFruit = 0)
+        public PlantBit(Vector2Int posInit, PlantBitData newData, PlantBitManager manager, bool isHeartInit = false, int startLeaf = 0, int startRoot = 0, int startFruit = 0, int startMaxComponent = 0)
         {
             position = posInit;
             data = newData;
@@ -77,7 +78,7 @@ namespace Egglers
             // Setup Heirarchy
             parent = null;
 
-            maxComponentCount = CalculateMaxComponentCount();
+            maxComponentCount = maxComponentCount <= 0 ? startMaxComponent : CalculateMaxComponentCount();
             sproutCost = CalculateSproutCost();
 
             attackDamage = CalculateStat(leafCount, graftedLeafCount, data.leafMultiplier);
@@ -127,19 +128,24 @@ namespace Egglers
 
         private float CalculateSproutCost()
         {
-            float naturalScalar = 1 + TotalNaturalComponents * data.naturalSproutCostScaling;
-            float graftedScalar = 1 + TotalGraftedComponents * data.graftedSproutCostScaling;
-            float cost = data.baseSproutCost * naturalScalar * graftedScalar;
+            // float naturalScalar = 1 + TotalNaturalComponents * data.naturalSproutCostScaling;
+            // float graftedScalar = 1 + TotalGraftedComponents * data.graftedSproutCostScaling;
+            // float cost = data.baseSproutCost * naturalScalar * graftedScalar;
+
+            float naturalTax = TotalNaturalComponents * data.naturalSproutCostScaling;
+            float graftedTax = TotalGraftedComponents * data.graftedSproutCostScaling;
+            float cost = data.baseSproutCost + naturalTax + graftedTax;
+
             return cost;
         }
 
         private float CalculateStat(int natural, int grafted, float baseMultiplier)
         {
             // Exponential for natural components (power of 1.3)
-            float naturalPower = Mathf.Pow(natural, 1.3f) * baseMultiplier;
+            float naturalPower = Mathf.Pow(natural, data.naturalComponentPower) * baseMultiplier;
 
             // Linear for grafted components
-            float graftedPower = grafted * 1.0f;
+            float graftedPower = grafted * 1.0f; // Why don't we multiply this by the base too?
 
             return naturalPower + graftedPower;
         }
@@ -157,6 +163,8 @@ namespace Egglers
             phase = PlantBitPhase.Grown;
             UpdateStats();
             plantManager.AddMaxEnergy(energyStorage);
+
+            Debug.Log($"Sprout Grown | added storage: {energyStorage}");
 
             // One-time auto-sprout
             // if (!hasAutoSprouted)
@@ -180,10 +188,13 @@ namespace Egglers
             //     }
             // }
 
+            // Debug.Log($"Attempting Sprouting | energy cost: {sproutCost} | energy left: {plantManager.currentEnergy}");
+
             void sprout(GameTile tile)
             {
-                if (tile.GetPlantBit() != null && plantManager.RemoveEnergy(sproutCost))
+                if (tile.GetPlantBit() == null && plantManager.RemoveEnergy(sproutCost))
                 {
+                    Debug.Log($"Making Sprout | cost: {sproutCost}");
                     plantManager.CreateSprout(this, tile.position);
                 }
             }
@@ -291,12 +302,13 @@ namespace Egglers
             {
                 if (tile.pollution >= 0 && attackDamage > tile.pollution)
                 {
-                    float resourceGain = tile.pollution * 0.1f * extractionRate;
+                    float energyGain = tile.pollution * data.extractionPollutionFactor * extractionRate;
 
                     // Apply type modifier
                     // resourceGain *= tile.GetExtractionMultiplier();
 
-                    plantManager.AddEnergy(resourceGain);
+                    Debug.Log($"Extracting Energy | gain: {energyGain}");
+                    plantManager.AddEnergy(energyGain);
 
                     // Reduce pollution
                     // float pollutionReduction = (attackDamage - tile.attackDamage) * 0.05f;
@@ -310,7 +322,9 @@ namespace Egglers
                 }
             }
 
-            plantManager.gameGrid.ForAllNeighbors(extract, position);
+            // plantManager.gameGrid.ForAllNeighbors(extract, position);
+            
+            extract(plantManager.gameGrid.GetTileAtPosition(position));
         }
 
         // public bool IsValidSproutTarget(Vector2Int target)
