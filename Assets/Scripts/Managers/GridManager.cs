@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEditor;
 #endif
 
-[ExecuteInEditMode] // allows code to run in the editor
+[ExecuteInEditMode]
 public class GridManager : MonoBehaviour
 {
     // ---------------- Singleton ----------------
@@ -35,8 +35,7 @@ public class GridManager : MonoBehaviour
     [Header("References")]
     public GameObject tilePrefab; // assign in inspector
 
-    // Store tile references
-    [HideInInspector] public GameObject[,] tiles;
+    public GameObject[,] tiles;
 
     // ---------------- Grid Generation ----------------
 #if UNITY_EDITOR
@@ -70,6 +69,7 @@ public class GridManager : MonoBehaviour
 #endif
                 tile.name = $"Tile ({x},{y})";
                 tiles[x, y] = tile;
+
             }
         }
 

@@ -2,11 +2,16 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using TMPro;
+
+
 public class TileContextMenu : MonoBehaviour
 {
     public Camera cam;
     public RectTransform contextMenuPanel;
     public GridHighlighter highlightManager;
+    public Button buttonPrefab; // assign a simple UI button prefab
+
     public Vector2 offset = new Vector2(10f, -10f);
 
     private GameObject selectedTile;
@@ -74,46 +79,40 @@ public class TileContextMenu : MonoBehaviour
 
     void ShowContextMenu(Vector2 screenPos, GameObject tile)
     {
+        selectedTile = tile;
         contextMenuPanel.gameObject.SetActive(true);
-
         highlightManager.SetSelectedTile(tile);
         highlightManager.SetContextMenuOpen(true);
 
-        // Convert to canvas space
-        Vector2 canvasLocalPos;
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            canvas.transform as RectTransform,
-            screenPos,
-            canvas.worldCamera,
-            out canvasLocalPos);
+        // Clear old buttons
+        foreach (Transform child in contextMenuPanel)
+            Destroy(child.gameObject);
 
-        Vector2 finalPos = canvasLocalPos + offset;
+        // Populate buttons dynamically
+        TileData tileData = tile.GetComponent<TileData>();
+        if (tileData != null && tileData.actions != null)
+        {
+            foreach (var action in tileData.actions)
+            {
+                Button b = Instantiate(buttonPrefab, contextMenuPanel);
+                b.GetComponentInChildren<TMP_Text>().text = action.actionName;
 
-        // Clamp inside canvas bounds
-        RectTransform canvasRect = canvas.transform as RectTransform;
-        Vector2 size = contextMenuPanel.sizeDelta;
-
-        float halfW = size.x * 0.5f;
-        float halfH = size.y * 0.5f;
-
-        float minX = -canvasRect.rect.width * 0.5f + halfW;
-        float maxX = canvasRect.rect.width * 0.5f - halfW;
-        float minY = -canvasRect.rect.height * 0.5f + halfH;
-        float maxY = canvasRect.rect.height * 0.5f - halfH;
-
-        finalPos.x = Mathf.Clamp(finalPos.x, minX, maxX);
-        finalPos.y = Mathf.Clamp(finalPos.y, minY, maxY);
-
-        contextMenuPanel.localPosition = finalPos;
+                b.onClick.AddListener(() =>
+                {
+                    action.callback?.Invoke(tile);
+                    HideContextMenu();
+                });
+            }
+        }
+        // Position menu at mouse
+        contextMenuPanel.position = screenPos;
     }
 
     void HideContextMenu()
     {
         contextMenuPanel.gameObject.SetActive(false);
-
         highlightManager.SetContextMenuOpen(false);
         highlightManager.ClearSelectedTile();
-
         selectedTile = null;
     }
 
