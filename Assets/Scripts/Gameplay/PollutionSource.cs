@@ -20,6 +20,9 @@ namespace PlantPollutionGame
         public float timeSinceCreation;
         public bool IsActive => timeSinceCreation >= dormantDuration;
         
+        // Network tracking
+        public List<PollutionTile> connectedTiles = new List<PollutionTile>(); // all tiles connected to this source
+        
         public PollutionSource(Vector2Int pos, float spreadRate, float strength, float resistance, float pulse, float dormant)
         {
             position = pos;
@@ -44,6 +47,9 @@ namespace PlantPollutionGame
                 return;
             }
             
+            // Take snapshot of tiles before the pulse, so new tiles dont spread yet
+            List<PollutionTile> tilesBeforePulse = new List<PollutionTile>(connectedTiles);
+            
             // Get adjacent positions
             List<Vector2Int> adjacentPositions = PollutionManager.Instance.GetAdjacentPositions(position);
             
@@ -63,14 +69,18 @@ namespace PlantPollutionGame
                 // If empty (null), create new tile
                 if (neighborObject == null)
                 {
-                    PollutionManager.Instance.AddPollutionToPosition(neighborPos, emitSpreadRate, emitStrength, emitResistance);
-                    PollutionManager.Instance.MarkTileDirty(neighborPos);
+                    PollutionTile newTile = PollutionManager.Instance.AddPollutionToPosition(neighborPos, emitSpreadRate, emitStrength, emitResistance);
+                    // Connect this source to the new tile
+                    ConnectToTile(newTile);
                 }
                 // If it's a PollutionTile
                 else if (neighborObject is PollutionTile neighborTile)
                 {
-                    // Always mark as dirty (keeps spreading active)
-                    PollutionManager.Instance.MarkTileDirty(neighborPos);
+                    // Skip frozen tiles
+                    if (neighborTile.isFrozen)
+                    {
+                        continue;
+                    }
                     
                     // Add pollution only if under 90% cap
                     float neighborCurrent = neighborTile.GetTotalPollution();
@@ -89,9 +99,33 @@ namespace PlantPollutionGame
                         {
                             PollutionManager.Instance.AddPollutionToTile(neighborTile, emitSpreadRate, emitStrength, emitResistance);
                         }
+                        
+                        // Connect this source to the tile
+                        ConnectToTile(neighborTile);
                     }
                 }
                 // If it's another PollutionSource, skip
+            }
+            
+            // Now spread tiles that existed BEFORE this pulse (not newly created ones)
+            foreach (PollutionTile tile in tilesBeforePulse)
+            {
+                tile.Spread();
+            }
+        }
+        
+        private void ConnectToTile(PollutionTile tile)
+        {
+            // Add source to tile's connected sources
+            if (!tile.connectedSources.Contains(this))
+            {
+                tile.connectedSources.Add(this);
+            }
+            
+            // Add tile to source's connected tiles
+            if (!connectedTiles.Contains(tile))
+            {
+                connectedTiles.Add(tile);
             }
         }
     }

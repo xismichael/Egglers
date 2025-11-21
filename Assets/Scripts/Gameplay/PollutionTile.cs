@@ -7,9 +7,13 @@ namespace PlantPollutionGame
     {
         public Vector2Int position;
 
-        public float pollutionSpreadRate; // how often the tile will spread pollution
+        public float pollutionSpreadRate; // How pollution gets translated to the tile
         public float pollutionStrength; // the attack damage of the tile
         public float pollutionResistance; // how quick for the plant to consume the pollution
+        
+        public bool isFrozen; // if true, cannot be added to or spread
+        
+        public HashSet<PollutionSource> connectedSources = new HashSet<PollutionSource>(); // tracks which sources this tile is connected to
 
         public PollutionTile(Vector2Int pos)
         {
@@ -23,6 +27,12 @@ namespace PlantPollutionGame
 
         public void Spread()
         {
+            // Can't spread if frozen
+            if (isFrozen)
+            {
+                return;
+            }
+            
             // Get adjacent positions
             List<Vector2Int> adjacentPositions = PollutionManager.Instance.GetAdjacentPositions(position);
 
@@ -42,14 +52,28 @@ namespace PlantPollutionGame
                 // If empty (null), create new tile
                 if (neighborObject == null)
                 {
-                    PollutionManager.Instance.AddPollutionToPosition(neighborPos, spreadAmount_SpreadRate, spreadAmount_Strength, spreadAmount_Resistance);
-                    PollutionManager.Instance.MarkTileDirty(neighborPos);
+                    PollutionTile newTile = PollutionManager.Instance.AddPollutionToPosition(neighborPos, spreadAmount_SpreadRate, spreadAmount_Strength, spreadAmount_Resistance);
+                    // Connect all of this tile's sources to the new tile
+                    foreach (PollutionSource source in connectedSources)
+                    {
+                        if (!newTile.connectedSources.Contains(source))
+                        {
+                            newTile.connectedSources.Add(source);
+                        }
+                        if (!source.connectedTiles.Contains(newTile))
+                        {
+                            source.connectedTiles.Add(newTile);
+                        }
+                    }
                 }
                 // If it's a PollutionTile, check if we can add to it
                 else if (neighborObject is PollutionTile neighborTile)
                 {
-                    // Always mark as dirty (keeps spreading active)
-                    PollutionManager.Instance.MarkTileDirty(neighborPos);
+                    // Skip frozen tiles
+                    if (neighborTile.isFrozen)
+                    {
+                        continue;
+                    }
                     
                     float neighborCurrent = neighborTile.GetTotalPollution();
                     
@@ -74,6 +98,19 @@ namespace PlantPollutionGame
                         {
                             // Safe to add the full amount
                             PollutionManager.Instance.AddPollutionToTile(neighborTile, spreadAmount_SpreadRate, spreadAmount_Strength, spreadAmount_Resistance);
+                        }
+                        
+                        // Connect all of this tile's sources to the neighbor (merging networks)
+                        foreach (PollutionSource source in connectedSources)
+                        {
+                            if (!neighborTile.connectedSources.Contains(source))
+                            {
+                                neighborTile.connectedSources.Add(source);
+                            }
+                            if (!source.connectedTiles.Contains(neighborTile))
+                            {
+                                source.connectedTiles.Add(neighborTile);
+                            }
                         }
                     }
                 }
