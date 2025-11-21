@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Mono.Cecil;
 using UnityEngine;
 
 namespace Egglers
@@ -49,12 +48,9 @@ namespace Egglers
         public int TotalGraftedComponents => graftedLeafCount + graftedRootCount + graftedFruitCount;
         public int TotalComponents => TotalNaturalComponents + TotalGraftedComponents;
 
-        // public bool hasAutoSprouted;
-
         // Cooldowns
-        // public float graftingCooldown;
+        public float graftingCooldown;
         
-        // public int growthDuration;
         // public float resourcePerTick;
 
         public PlantBit(Vector2Int posInit, PlantBitData newData, PlantBitManager manager, bool isHeartInit = false, int startLeaf = 0, int startRoot = 0, int startFruit = 0, int startMaxComponent = 0)
@@ -166,30 +162,11 @@ namespace Egglers
 
             Debug.Log($"Sprout Grown | added storage: {energyStorage}");
 
-            // One-time auto-sprout
-            // if (!hasAutoSprouted)
-            // {
-            //     hasAutoSprouted = true;
-            //     AttemptAutoSprout();
-            // }
-
             AttemptAutoSprout();
         }
 
         private void AttemptAutoSprout()
         {
-            // List<Vector2Int> neighbors = gridSystem.GetNeighbors(position, includeDiagonal: false);
-
-            // foreach (Vector2Int neighborPos in neighbors)
-            // {
-            //     if (IsValidSproutTarget(neighborPos))
-            //     {
-            //         plantManager.CreateSprout(this, neighborPos);
-            //     }
-            // }
-
-            // Debug.Log($"Attempting Sprouting | energy cost: {sproutCost} | energy left: {plantManager.currentEnergy}");
-
             void sprout(GameTile tile)
             {
                 if (tile.GetPlantBit() == null && plantManager.RemoveEnergy(sproutCost))
@@ -215,116 +192,122 @@ namespace Egglers
                     }
                 }
             }
-            else
+            else if (phase == PlantBitPhase.Grown)
             {
                 ExtractEnergy();
+
+                // Update cooldowns
+                if (graftingCooldown > 0)
+                {
+                    graftingCooldown --;
+                    if (graftingCooldown < 0) graftingCooldown = 0;
+                }
             }
-
-            // // Collect source damage (batched)
-            // Dictionary<PollutionSource, float> sourceDamage = new Dictionary<PollutionSource, float>();
-
-            // foreach (Plant plant in allPlants.Values)
-            // {
-            //     if (plant.phase == PlantPhase.Bud)
-            //     {
-            //         // Bud growth
-            //         if (CanAfford(plant.resourcePerTick))
-            //         {
-            //             SpendResource(plant.resourcePerTick);
-            //             plant.growthProgress++;
-
-            //             if (plant.growthProgress >= plant.growthDuration)
-            //             {
-            //                 plant.TransitionToGrownPhase();
-            //                 UpdateMaxStorage(); // Bud became grown, update cap
-            //             }
-            //         }
-            //         // Else: growth pauses
-
-            //         // Check overwhelm (uses parent's dynamic ATD)
-            //         plant.CheckOverwhelm();
-            //     }
-            //     else if (plant.phase == PlantPhase.Grown)
-            //     {
-            //         // Extract resources and reduce pollution
-            //         plant.ExtractFromAdjacentPollution();
-
-            //         // Collect source damage
-            //         List<Vector2Int> neighbors = gridSystem.GetNeighbors(plant.position, includeDiagonal: false);
-            //         foreach (Vector2Int neighborPos in neighbors)
-            //         {
-            //             if (gridSystem.GetTileState(neighborPos) == TileState.PollutionSource)
-            //             {
-            //                 PollutionSource source = gridSystem.GetEntity<PollutionSource>(neighborPos);
-            //                 if (source != null)
-            //                 {
-            //                     float pollutionAtSource = pollutionManager.GetPollutionLevelAt(source.position);
-            //                     if (plant.attackDamage > pollutionAtSource)
-            //                     {
-            //                         float margin = plant.attackDamage - pollutionAtSource;
-            //                         float damage = margin * 0.1f;
-
-            //                         if (!sourceDamage.ContainsKey(source))
-            //                         {
-            //                             sourceDamage[source] = 0;
-            //                         }
-            //                         sourceDamage[source] += damage;
-            //                     }
-            //                 }
-            //             }
-            //         }
-
-            //         // Check overwhelm (except Heart)
-            //         if (!plant.isHeart)
-            //         {
-            //             plant.CheckOverwhelm();
-            //         }
-            //     }
-
-            //     // Update cooldowns
-            //     if (plant.graftingCooldown > 0)
-            //     {
-            //         plant.graftingCooldown -= plantTickRate;
-            //         if (plant.graftingCooldown < 0) plant.graftingCooldown = 0;
-            //     }
-            // }
-
-            // // Apply batched source damage
-            // foreach (var kvp in sourceDamage)
-            // {
-            //     kvp.Key.TakeDamage(kvp.Value);
-            // }
         }
 
         public void ExtractEnergy()
         {
-            void extract(GameTile tile)
-            {
-                if (tile.pollution >= 0 && attackDamage > tile.pollution)
-                {
-                    float energyGain = tile.pollution * data.extractionPollutionFactor * extractionRate;
+            float pollution = plantManager.GetPollutionAtTile(position);
 
-                    // Apply type modifier
-                    // resourceGain *= tile.GetExtractionMultiplier();
+            if (pollution >= 0 && attackDamage > pollution)
+                {
+                    float energyGain = (extractionRate > pollution) ? pollution : extractionRate;
+
+                    plantManager.RemovePollutionAtTile(position, extractionRate);
 
                     Debug.Log($"Extracting Energy | gain: {energyGain}");
                     plantManager.AddEnergy(energyGain);
-
-                    // Reduce pollution
-                    // float pollutionReduction = (attackDamage - tile.attackDamage) * 0.05f;
-                    // tile.TakeDamage(pollutionReduction);
-
-                    // Check if tile should be removed
-                    // if (tile.ShouldBeRemoved())
-                    // {
-                    //     plantManager.RemovePollutionTile(neighborPos);
-                    // }
                 }
+        }
+
+        public void Kill()
+        {
+            // Update resource cap
+            plantManager.RemoveMaxEnergy(energyStorage);
+
+            // Remove from parent's children list
+            if (parent != null)
+            {
+                parent.children.Remove(this);
             }
 
-            // plantManager.gameGrid.ForAllNeighbors(extract, position);
-            
-            extract(plantManager.gameGrid.GetTileAtPosition(position));
+            // Cascade to all children (no orphans)
+            foreach (PlantBit child in children)
+            {
+                plantManager.KillPlantBit(child);
+            }
+        }
+
+        public void RemoveGraft(int leaf, int root, int fruit)
+        {
+            if (graftingCooldown > 0)
+            {
+                Debug.LogWarning("Plant is on grafting cooldown");
+                return;
+            }
+
+            // Check if plant has enough grafts to remove
+            if (leaf > graftedLeafCount || root > graftedRootCount || fruit > graftedFruitCount)
+            {
+                Debug.LogWarning("Trying to remove more grafts than available");
+                return;
+            }
+
+            // Cost to remove
+            int totalRemoved = leaf + root + fruit;
+            float removalCost = totalRemoved * data.removalCostPerComponent;
+            if (!plantManager.RemoveEnergy(removalCost))
+            {
+                Debug.LogWarning("Not enough resources to remove grafts");
+                return;
+            }
+
+            plantManager.UpdateGraftBuffer(leaf, root, fruit);
+
+            // Remove from plant
+            graftedLeafCount -= leaf;
+            graftedRootCount -= root;
+            graftedFruitCount -= fruit;
+            UpdateStats();
+
+            // Start cooldown
+            graftingCooldown = data.graftCooldownDuration;
+        }
+
+        public void ApplyGraft(GraftBuffer graft)
+        {
+            if (graftingCooldown > 0)
+            {
+                Debug.LogWarning("Plant is on grafting cooldown");
+                return;
+            }
+
+            // Check capacity
+            int newTotal = TotalComponents + graft.TotalComponents;
+            if (newTotal > maxComponentCount)
+            {
+                Debug.LogWarning("Would exceed plant's max component capacity");
+                return;
+            }
+
+            // Calculate cost
+            float cost = data.baseGraftCost * (1 + TotalComponents * data.graftCostScaling);
+            if (!plantManager.RemoveEnergy(cost))
+            {
+                Debug.LogWarning("Not enough resources to apply grafts");
+                return;
+            }
+
+            plantManager.ClearGraftBuffer();
+
+            // Apply to plant
+            graftedLeafCount += graft.leafCount;
+            graftedRootCount += graft.rootCount;
+            graftedFruitCount += graft.fruitCount;
+            UpdateStats();
+
+            // Start cooldown
+            graftingCooldown = data.graftCooldownDuration;
         }
 
         // public bool IsValidSproutTarget(Vector2Int target)
@@ -348,86 +331,6 @@ namespace Egglers
         //     // }
 
         //     return false;
-        // }
-
-        // public bool IsValidManualSprout(Vector2Int target)
-        // {
-        //     // Must be adjacent
-        //     if (!gridSystem.AreAdjacent(position, target))
-        //     {
-        //         return false;
-        //     }
-
-        //     TileState state = gridSystem.GetTileState(target);
-
-        //     // Cannot have plant, source, or heart
-        //     if (state == TileState.Plant || state == TileState.PollutionSource || state == TileState.Heart)
-        //     {
-        //         return false;
-        //     }
-
-        //     // Empty tiles always valid
-        //     if (state == TileState.Empty)
-        //     {
-        //         return true;
-        //     }
-
-        //     // Polluted tiles: need ATD > pollution
-        //     if (state == TileState.Pollution)
-        //     {
-        //         PollutionTile tile = gridSystem.GetEntity<PollutionTile>(target);
-        //         if (tile != null)
-        //         {
-        //             return attackDamage > tile.attackDamage;
-        //         }
-        //     }
-
-        //     return false;
-        // }
-
-        // public void CheckOverwhelm()
-        // {
-        //     List<Vector2Int> neighbors = gridSystem.GetNeighbors(position, includeDiagonal: false);
-
-        //     foreach (Vector2Int neighborPos in neighbors)
-        //     {
-        //         if (gridSystem.GetTileState(neighborPos) == TileState.Pollution)
-        //         {
-        //             PollutionTile tile = gridSystem.GetEntity<PollutionTile>(neighborPos);
-        //             if (tile != null)
-        //             {
-        //                 float effectiveATD;
-
-        //                 if (phase == PlantPhase.Bud)
-        //                 {
-        //                     // Buds use parent's CURRENT ATD (dynamic)
-        //                     if (parentPlant == null)
-        //                     {
-        //                         continue; // Safety check
-        //                     }
-        //                     effectiveATD = parentPlant.attackDamage;
-        //                 }
-        //                 else
-        //                 {
-        //                     // Grown plants use own ATD
-        //                     effectiveATD = attackDamage;
-        //                 }
-
-        //                 // Acidic pollution requires more leaves to resist
-        //                 if (tile.dominantType == PollutionType.Acidic)
-        //                 {
-        //                     effectiveATD *= 0.67f;
-        //                 }
-
-        //                 // Pollution overwhelms if ATD <= pollution attack
-        //                 if (effectiveATD <= tile.attackDamage)
-        //                 {
-        //                     plantManager.DeletePlant(this, fromPollution: true);
-        //                     return;
-        //                 }
-        //             }
-        //         }
-        //     }
         // }
     }
 }

@@ -1,8 +1,47 @@
 using System.Collections;
+using System.Data;
+using Unity.VisualScripting;
 using UnityEngine;
 
 namespace Egglers
 {
+
+    // Struct for grafting buffer
+    [System.Serializable]
+    public struct GraftBuffer
+    {
+        public int leafCount;
+        public int rootCount;
+        public int fruitCount;
+        public bool hasContent;
+
+        public GraftBuffer(int leaf, int root, int fruit, bool hasContent)
+        {
+            leafCount = leaf;
+            rootCount = root;
+            fruitCount = fruit;
+            this.hasContent = hasContent;
+        }
+
+        public void Update(int leaf, int root, int fruit)
+        {
+            leafCount = leaf;
+            rootCount = root;
+            fruitCount = fruit;
+            hasContent = true;
+        }
+
+        public void Clear()
+        {
+            leafCount = 0;
+            rootCount = 0;
+            fruitCount = 0;
+            hasContent = false;
+        }
+
+        public int TotalComponents => leafCount + rootCount + fruitCount;
+    }
+
     public class PlantBitManager : MonoBehaviour
     {
         [Tooltip("Plant bit data scriptable object")]
@@ -33,24 +72,17 @@ namespace Egglers
         public float currentEnergy;
         public float maxEnergy;
 
-        // Plant tracking
-        // public Dictionary<Vector2Int, Plant> allPlants = new Dictionary<Vector2Int, Plant>();
-        
-        // public GridSystem gridSystem;
         // public PollutionManager pollutionManager;
 
         // Grafting
-        // public GraftBuffer graftBuffer;
-
-        // UI Event for graft buffer warning
-        // public System.Action<string> OnWarningMessage;
+        public GraftBuffer graftBuffer;
 
         private WaitForSeconds waitForTick;
 
         private void Awake()
         {
-            // graftBuffer = new GraftBuffer(0, 0, 0, false);
-            gameGrid = new GameGrid(gridWidth, gridHeight); // THIS IS THE PROBLEM LINE, NOT SURE WHAT IS WRONG
+            graftBuffer = new GraftBuffer(0, 0, 0, false);
+            gameGrid = new GameGrid(gridWidth, gridHeight);
             // waitForTick = new WaitForSeconds(tickDurationSeconds);
         }
 
@@ -89,82 +121,26 @@ namespace Egglers
         public void InitializeHeart()
         {
             heart = new PlantBit(startingHeartPos, heartBitData, this, true, heartStartingLeaf, heartStartingRoot, heartStartingFruit, heartStartingMaxComponent);
-
             gameGrid.GetTileAtPosition(startingHeartPos).SetPlantBit(heart);
-
-            // Initialize resources
-            // UpdateMaxStorage();
-            // float firstSproutCost = CalculateSproutCost(heart);
-            // currentEnergy = firstSproutCost * 1.5f;
         }
 
         public void CreateSprout(PlantBit parent, Vector2Int targetPos)
         {
-            PlantBit child = new PlantBit(targetPos, plantBitData, parent);
-            child.position = targetPos;
-
+            PlantBit child = new(targetPos, plantBitData, parent);
             gameGrid.GetTileAtPosition(targetPos).SetPlantBit(child);
         }
 
-        // public float CalculateSproutCost(PlantBit parent)
-        // {
-        //     int totalComponents = parent.TotalComponents;
-        //     int graftedComponents = parent.TotalGraftedComponents;
+        public void KillPlantBit(PlantBit plantBit)
+        {
+            if (plantBit == heart)
+            {
+                Debug.Log("GAME OVER HEART IS DEAD");
+            }
 
-        //     float cost = baseSproutCost * (1 + totalComponents * componentCostScaling) * (1 + graftedComponents * graftedCostScaling);
-        //     return cost;
-        // }
-
-        // public void ManualSprout(Plant parent, Vector2Int targetPos)
-        // {
-        //     if (!parent.IsValidManualSprout(targetPos))
-        //     {
-        //         Debug.LogWarning($"Invalid manual sprout target: {targetPos}");
-        //         return;
-        //     }
-
-        //     float cost = CalculateSproutCost(parent) * 2f; // Manual sprouting costs more
-        //     if (!CanAfford(cost))
-        //     {
-        //         Debug.LogWarning("Not enough resources for manual sprouting");
-        //         return;
-        //     }
-
-        //     SpendResource(cost);
-        //     CreateSprout(parent, targetPos);
-        // }
-
-        // public void DeletePlant(Plant plant, bool fromPollution = false)
-        // {
-        //     // Cascade to all children (no orphans)
-        //     List<Plant> childrenCopy = new List<Plant>(plant.children);
-        //     foreach (Plant child in childrenCopy)
-        //     {
-        //         DeletePlant(child, fromPollution);
-        //     }
-
-        //     // Remove from parent's children list
-        //     if (plant.parentPlant != null)
-        //     {
-        //         plant.parentPlant.children.Remove(plant);
-        //     }
-
-        //     // Remove from grid
-        //     allPlants.Remove(plant.position);
-        //     gridSystem.SetTileState(plant.position, TileState.Empty);
-        //     gridSystem.RemoveEntity(plant.position);
-
-        //     // Update resource cap and clamp
-        //     UpdateMaxStorage();
-        //     currentResources = Mathf.Min(currentResources, maxResourceStorage);
-
-        //     // Refund 50% if pruned by player
-        //     if (!fromPollution)
-        //     {
-        //         float refund = plant.sproutGrowthCost * 0.5f;
-        //         AddResource(refund);
-        //     }
-        // }
+            // Remove from grid
+            gameGrid.GetTileAtPosition(plantBit.position).SetPlantBit(null);
+            plantBit.Kill();
+        }
 
         public void AddMaxEnergy(float amount)
         {
@@ -174,6 +150,7 @@ namespace Egglers
         public void RemoveMaxEnergy(float amount)
         {
             maxEnergy = Mathf.Max(maxEnergy - amount, 0);
+            currentEnergy = Mathf.Min(currentEnergy, maxEnergy);
         }
 
         public void AddEnergy(float amount)
@@ -183,119 +160,70 @@ namespace Egglers
 
         public bool RemoveEnergy(float amount)
         {
-            float newEnergy = Mathf.Max(currentEnergy - amount, 0);
-            if (newEnergy == 0) return false;
-
-            currentEnergy = newEnergy;
+            if (currentEnergy < amount) return false;
+            currentEnergy -= amount;
             return true;
         }
 
-        // public void RemoveGrafts(Plant plant, int leaf, int root, int fruit)
-        // {
-        //     if (plant.graftingCooldown > 0)
-        //     {
-        //         Debug.LogWarning("Plant is on grafting cooldown");
-        //         return;
-        //     }
+        public void RemoveGraftAtPosition(Vector2Int pos, int leaf, int root, int fruit)
+        {
+            GameTile tile = gameGrid.GetTileAtPosition(pos);
+            PlantBit plantBit = tile.GetPlantBit();
 
-        //     // Check if plant has enough grafts to remove
-        //     if (leaf > plant.graftedLeafAmount || root > plant.graftedRootAmount || fruit > plant.graftedFruitAmount)
-        //     {
-        //         Debug.LogWarning("Trying to remove more grafts than available");
-        //         return;
-        //     }
+            if (plantBit == null) return;
 
-        //     // Cost to remove
-        //     int totalRemoved = leaf + root + fruit;
-        //     float removalCost = totalRemoved * removalCostPerComponent;
-        //     if (!CanAfford(removalCost))
-        //     {
-        //         Debug.LogWarning("Not enough resources to remove grafts");
-        //         return;
-        //     }
+            plantBit.RemoveGraft(leaf, root, fruit);
+        }
 
-        //     SpendResource(removalCost);
+        public void ApplyGraftAtPosition(Vector2Int pos)
+        {
+            GameTile tile = gameGrid.GetTileAtPosition(pos);
+            PlantBit plantBit = tile.GetPlantBit();
+            if (plantBit == null) return;
 
-        //     // Warn if overwriting buffer
-        //     if (graftBuffer.hasContent)
-        //     {
-        //         OnWarningMessage?.Invoke("Previous grafts lost!");
-        //     }
+            if (!graftBuffer.hasContent)
+            {
+                Debug.LogWarning("No grafts in buffer to apply");
+                return;
+            }
 
-        //     // Update buffer
-        //     graftBuffer = new GraftBuffer(leaf, root, fruit, true);
+            plantBit.ApplyGraft(graftBuffer);
+        }
 
-        //     // Remove from plant
-        //     plant.graftedLeafAmount -= leaf;
-        //     plant.graftedRootAmount -= root;
-        //     plant.graftedFruitAmount -= fruit;
-        //     plant.RecalculateStats();
+        public void UpdateGraftBuffer(int leaf, int root, int fruit)
+        {
+            // Warn if overwriting buffer
+            if (graftBuffer.hasContent)
+            {
+                Debug.Log("Previous grafts lost!");
+            }
 
-        //     // Start cooldown
-        //     plant.graftingCooldown = graftCooldownDuration;
-        // }
+            // Update buffer
+            graftBuffer.Update(leaf, root, fruit);
+        }
 
-        // public void ApplyGrafts(Plant plant)
-        // {
-        //     if (!graftBuffer.hasContent)
-        //     {
-        //         Debug.LogWarning("No grafts in buffer to apply");
-        //         return;
-        //     }
+        public void ClearGraftBuffer()
+        {
+            graftBuffer.Clear();
+        }
 
-        //     if (plant.graftingCooldown > 0)
-        //     {
-        //         Debug.LogWarning("Plant is on grafting cooldown");
-        //         return;
-        //     }
+        public float GetPollutionAtTile(Vector2Int pos)
+        {
+            return gameGrid.GetTileAtPosition(pos).pollution;
+        }
 
-        //     // Check capacity
-        //     int newTotal = plant.TotalComponents + graftBuffer.TotalComponents;
-        //     if (newTotal > plant.maxComponentAmount)
-        //     {
-        //         Debug.LogWarning("Would exceed plant's max component capacity");
-        //         return;
-        //     }
+        public void RemovePollutionAtTile(Vector2Int pos, float amount)
+        {
+            Debug.Log($"Removing {amount} from pollution on tile {pos}");
+        }
 
-        //     // Calculate cost
-        //     float cost = baseGraftCost * (1 + plant.TotalComponents * graftCostScaling);
-        //     if (!CanAfford(cost))
-        //     {
-        //         Debug.LogWarning("Not enough resources to apply grafts");
-        //         return;
-        //     }
+        public float GetAttackDamageAtTile(Vector2Int pos)
+        {
+            GameTile tile = gameGrid.GetTileAtPosition(pos);
+            PlantBit plantBit = tile.GetPlantBit();
+            if (plantBit == null) return 0.0f;
 
-        //     SpendResource(cost);
-
-        //     // Apply to plant
-        //     plant.graftedLeafAmount += graftBuffer.leafAmount;
-        //     plant.graftedRootAmount += graftBuffer.rootAmount;
-        //     plant.graftedFruitAmount += graftBuffer.fruitAmount;
-        //     plant.RecalculateStats();
-
-        //     // Start cooldown
-        //     plant.graftingCooldown = graftCooldownDuration;
-
-        //     // Clear buffer
-        //     ClearGraftBuffer();
-        // }
-
-        // public void ClearGraftBuffer()
-        // {
-        //     graftBuffer = new GraftBuffer(0, 0, 0, false);
-        // }
-
-        
-
-        // public void RemovePollutionTile(Vector2Int pos)
-        // {
-        //     // Delegate to PollutionManager
-        //     if (pollutionManager != null)
-        //     {
-        //         pollutionManager.RemovePollutionTile(pos);
-        //     }
-        // }
-
-        
+            return plantBit.attackDamage;
+        }
     }
 }
