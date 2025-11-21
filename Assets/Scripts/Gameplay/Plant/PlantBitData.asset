@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6660bdd9c1487444395bb047f4b1a8ce, type: 3}
+  m_Name: PlantBitData
+  m_EditorClassIdentifier: Assembly-CSharp::Egglers.PlantBitData
+  leafMultiplier: 5
+  rootMultiplier: 1
+  fruitMultiplier: 5
+  naturalComponentPower: 1.3
+  baseSproutCost: 10
+  naturalSproutCostScaling: 0.2
+  graftedSproutCostScaling: 0.3
+  baseGraftCost: 5
+  graftCostScaling: 0.25
+  removalCostPerComponent: 1
+  graftCooldownDuration: 5
+  maxComponentIncrease: 1
+  maxComponentBonus: 1.5
+  extractionPollutionFactor: 0.05
+  fullGrowthTicks: 5
+  tickGrowthCost: 5
