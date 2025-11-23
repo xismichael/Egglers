@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace PlantPollutionGame
+namespace Egglers
 {
     public enum PollutionType
     {
@@ -48,24 +48,24 @@ namespace PlantPollutionGame
     }
 
     // Struct for grafting buffer
-    [System.Serializable]
-    public struct GraftBuffer
-    {
-        public int leafAmount;
-        public int rootAmount;
-        public int fruitAmount;
-        public bool hasContent;
+    // [System.Serializable]
+    // public struct GraftBuffer
+    // {
+    //     public int leafAmount;
+    //     public int rootAmount;
+    //     public int fruitAmount;
+    //     public bool hasContent;
 
-        public GraftBuffer(int leaf, int root, int fruit, bool hasContent)
-        {
-            this.leafAmount = leaf;
-            this.rootAmount = root;
-            this.fruitAmount = fruit;
-            this.hasContent = hasContent;
-        }
+    //     public GraftBuffer(int leaf, int root, int fruit, bool hasContent)
+    //     {
+    //         this.leafAmount = leaf;
+    //         this.rootAmount = root;
+    //         this.fruitAmount = fruit;
+    //         this.hasContent = hasContent;
+    //     }
 
-        public int TotalComponents => leafAmount + rootAmount + fruitAmount;
-    }
+    //     public int TotalComponents => leafAmount + rootAmount + fruitAmount;
+    // }
 
     // Struct for pollution spreading operations
     [System.Serializable]

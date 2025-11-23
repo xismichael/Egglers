@@ -1,64 +1,98 @@
 using UnityEngine;
 
-public class TileActionBinder : MonoBehaviour
+namespace Egglers
 {
-    private TileData tileData;
-
-    [Header("Plants")]
-    public GameObject plant1;
-    public GameObject plant2;
-    public GameObject plant3;
-
-    void Awake()
+    /// <summary>
+    /// Binds actions from TileActions to actual game callbacks.
+    /// Delegates all visual updates to GridVisualTile.
+    /// </summary>
+    public class TileActionBinder : MonoBehaviour
     {
-        tileData = GetComponent<TileData>();
+        [Header("Managers")]
+        [SerializeField] public PlantBitManager plantBitManager;
+        [SerializeField] public PollutionManager pollutionManager;
+        [SerializeField] public GameManager gameManager;
 
-        if (tileData == null || tileData.actions == null)
-            return;
+        private TileActions tileActions;
 
-        foreach (var action in tileData.actions)
+        void Awake()
         {
-            switch (action.actionName)
+            tileActions = GetComponent<TileActions>();
+            if (tileActions?.actions == null) return;
+
+            foreach (var action in tileActions.actions)
             {
-                case "Plant1":
-                    action.callback = Plant1Action;
-                    break;
-                case "Plant2":
-                    action.callback = Plant2Action;
-                    break;
-                case "Plant3":
-                    action.callback = Plant3Action;
-                    break;
-                default:
-                    Debug.LogWarning($"No callback bound for action '{action.actionName}' on tile {name}");
-                    break;
+                action.callback = GetCallbackForType(action.actionType);
+                if (action.callback == null)
+                    Debug.LogWarning($"Unhandled tile action type {action.actionType} on {name}");
             }
         }
-    }
 
-    void Plant1Action(GameObject tile)
-    {
-        SetActivePlant(plant1);
-        Debug.Log("Set Plant 1: " + tile.name);
-    }
+        // --------------------------
+        // Map enum to actual callback
+        // --------------------------
+        private System.Action<GameObject> GetCallbackForType(TileActionType type)
+        {
+            return type switch
+            {
+                TileActionType.Plant1 => tile => SetActivePlant(tile, 0),
+                TileActionType.Plant2 => tile => SetActivePlant(tile, 1),
+                TileActionType.Plant3 => tile => SetActivePlant(tile, 2),
+                TileActionType.Billboard => tile => SetBillboard(tile, "Hello World!"),
+                TileActionType.SpawnPollution => SpawnPollution,
+                TileActionType.PlaceHeart => PlaceHeart,
+                _ => null
+            };
+        }
 
-    void Plant2Action(GameObject tile)
-    {
-        SetActivePlant(plant2);
-        Debug.Log("Set Plant 2: " + tile.name);
-    }
+        // --------------------------
+        // Action callbacks
+        // --------------------------
+        private void SetActivePlant(GameObject tile, int plantIndex)
+        {
+            GridVisualTile visual = tile.GetComponent<GridVisualTile>();
+            if (visual == null) return;
 
-    void Plant3Action(GameObject tile)
-    {
-        SetActivePlant(plant3);
-        Debug.Log("Set Plant 3: " + tile.name);
-    }
+            visual.SetActivePlantByIndex(plantIndex);
+        }
 
-    // Enable only the selected plant
-    void SetActivePlant(GameObject activePlant)
-    {
-        if (plant1 != null) plant1.SetActive(plant1 == activePlant);
-        if (plant2 != null) plant2.SetActive(plant2 == activePlant);
-        if (plant3 != null) plant3.SetActive(plant3 == activePlant);
+        private void SetBillboard(GameObject tile, string text)
+        {
+            GridVisualTile visual = tile.GetComponent<GridVisualTile>();
+            if (visual == null) return;
+
+            visual.SetBillboardText(text);
+        }
+
+        private void SpawnPollution(GameObject tile)
+        {
+            if (pollutionManager == null)
+            {
+                Debug.LogWarning("No PollutionManager assigned.");
+                return;
+            }
+
+            GridVisualTile visual = tile.GetComponent<GridVisualTile>();
+            if (visual == null) return;
+
+            Vector2Int pos = visual.coords;
+            pollutionManager.GetOrCreateTile(pos); // example placeholder
+        }
+
+        private void PlaceHeart(GameObject tile)
+        {
+            GridVisualTile visual = tile.GetComponent<GridVisualTile>();
+            if (visual == null || gameManager == null) return;
+
+            Vector2Int pos = visual.coords;
+
+            if (!gameManager.IsValidHeartPlacement(pos))
+            {
+                Debug.Log("Invalid heart placement.");
+                return;
+            }
+
+            gameManager.OnPlayerPlacesHeart(pos);
+        }
     }
 }

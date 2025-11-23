@@ -2,21 +2,22 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace PlantPollutionGame
+namespace Egglers
 {
     public class GameManager : MonoBehaviour
     {
         [Header("Managers")]
         public PlantManager plantManager;
         public PollutionManager pollutionManager;
+        public GridManager gridManager;
         public GridSystem gridSystem;
 
         [Header("Game State")]
         public GameState gameState = GameState.HeartPlacement;
 
         [Header("Configuration")]
-        public int gridWidth = 20;
-        public int gridHeight = 20;
+        public int gridWidth = 10;
+        public int gridHeight = 10;
         public int heartStartLeaf = 3;
         public int heartStartRoot = 3;
         public int heartStartFruit = 3;
@@ -47,8 +48,12 @@ namespace PlantPollutionGame
             public float tickInterval;
             public float dormantDuration;
         }
-
-        private void Awake()
+        void Start()
+        {
+            GridManager.Instance.GenerateGrid();
+            InitializeGame();
+        }
+        void Awake()
         {
             // Initialize grid system
             if (gridSystem == null)
@@ -71,12 +76,21 @@ namespace PlantPollutionGame
                 pollutionManager.plantManager = plantManager;
             }
         }
-
-        private void Start()
+        void Update()
         {
-            InitializeGame();
+            // for (int x = 0; x < GridManager.Instance.width; x++)
+            // {
+            //     for (int y = 0; y < GridManager.Instance.height; y++)
+            //     {
+            //         GameObject tile = GridManager.Instance.GetTile(x, y);
+            //         if (tile != null)
+            //         {
+            //             TileActions data = tile.GetComponent<TileActions>();
+            //             data?.InvokeAction("billboard");
+            //         }
+            //     }
+            // }
         }
-
         public void InitializeGame()
         {
             // Place pollution sources (predetermined positions)

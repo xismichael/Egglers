@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace PlantPollutionGame
+namespace Egglers
 {
     public class PlantManager : MonoBehaviour
     {
@@ -273,9 +273,9 @@ namespace PlantPollutionGame
             SpendResource(cost);
 
             // Apply to plant
-            plant.graftedLeafAmount += graftBuffer.leafAmount;
-            plant.graftedRootAmount += graftBuffer.rootAmount;
-            plant.graftedFruitAmount += graftBuffer.fruitAmount;
+            plant.graftedLeafAmount += graftBuffer.leafCount;
+            plant.graftedRootAmount += graftBuffer.rootCount;
+            plant.graftedFruitAmount += graftBuffer.fruitCount;
             plant.RecalculateStats();
 
             // Start cooldown

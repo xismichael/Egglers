@@ -128,6 +128,8 @@ namespace Egglers
         {
             PlantBit child = new(targetPos, plantBitData, parent);
             gameGrid.GetTileAtPosition(targetPos).SetPlantBit(child);
+
+            GridEvents.PlantUpdated(targetPos);
         }
 
         public void KillPlantBit(PlantBit plantBit)
@@ -140,6 +142,8 @@ namespace Egglers
             // Remove from grid
             gameGrid.GetTileAtPosition(plantBit.position).SetPlantBit(null);
             plantBit.Kill();
+
+            GridEvents.PlantUpdated(plantBit.position);
         }
 
         public void AddMaxEnergy(float amount)
@@ -188,6 +192,7 @@ namespace Egglers
             }
 
             plantBit.ApplyGraft(graftBuffer);
+            GridEvents.PlantUpdated(pos);
         }
 
         public void UpdateGraftBuffer(int leaf, int root, int fruit)

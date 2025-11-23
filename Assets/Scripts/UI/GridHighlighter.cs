@@ -59,7 +59,7 @@ public class GridHighlighter : MonoBehaviour
             return;
         }
 
-        if ((ignoreUI && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) || contextMenuOpen)
+        if (ignoreUI && IsPointerOverBlockingUI())
         {
             hoveredTile = null;
             return;
@@ -72,6 +72,22 @@ public class GridHighlighter : MonoBehaviour
             hoveredTile = null;
     }
 
+    bool IsPointerOverBlockingUI()
+    {
+        PointerEventData pointerData = new PointerEventData(EventSystem.current)
+        {
+            position = Mouse.current.position.ReadValue()
+        };
+        List<RaycastResult> results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(pointerData, results);
+
+        foreach (var r in results)
+        {
+            if (r.gameObject.CompareTag("ContextMenu")) // tag your UI that should block hover
+                return true;
+        }
+        return false;
+    }
     // --------------------------
     // decide per-tile targets
     // --------------------------

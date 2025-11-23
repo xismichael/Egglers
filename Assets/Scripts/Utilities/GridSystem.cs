@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace PlantPollutionGame
+namespace Egglers
 {
     public class GridSystem
     {

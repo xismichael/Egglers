@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace PlantPollutionGame
+namespace Egglers
 {
     public class PollutionManager : MonoBehaviour
     {
@@ -36,6 +36,7 @@ namespace PlantPollutionGame
             gridSystem.SetTileState(position, TileState.PollutionSource);
             gridSystem.SetEntity(position, source);
 
+            GridEvents.PollutionUpdated(position);
             return source;
         }
 
@@ -46,6 +47,8 @@ namespace PlantPollutionGame
                 activeSources.Remove(source);
                 gridSystem.SetTileState(source.position, TileState.Empty);
                 gridSystem.RemoveEntity(source.position);
+
+                GridEvents.PollutionUpdated(source.position);
             }
         }
 
@@ -149,6 +152,8 @@ namespace PlantPollutionGame
                 {
                     targetTile.AddPollution(spread.pollutionType, spread.amount);
                     targetTile.hopsFromSource = Mathf.Min(targetTile.hopsFromSource, spread.hops);
+
+                    GridEvents.PollutionUpdated(spread.targetPosition);
                 }
             }
 
@@ -165,6 +170,7 @@ namespace PlantPollutionGame
             foreach (Vector2Int pos in tilesToRemove)
             {
                 RemovePollutionTile(pos);
+                GridEvents.PollutionUpdated(pos);
             }
         }
 
@@ -197,7 +203,7 @@ namespace PlantPollutionGame
                         if (effectiveATD <= tile.attackDamage)
                         {
                             // Trigger loss condition
-                            GameManager gameManager = FindObjectOfType<GameManager>();
+                            GameManager gameManager = FindFirstObjectByType<GameManager>();
                             if (gameManager != null)
                             {
                                 gameManager.TriggerLoss();

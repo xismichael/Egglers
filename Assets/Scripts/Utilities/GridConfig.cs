@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace PlantPollutionGame
+namespace Egglers
 {
     [CreateAssetMenu(fileName = "GridConfig", menuName = "Plant Pollution Game/Grid Config")]
     public class GridConfig : ScriptableObject

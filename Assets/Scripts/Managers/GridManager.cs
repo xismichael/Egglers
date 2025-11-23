@@ -1,5 +1,5 @@
 using UnityEngine;
-
+using Egglers;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -24,6 +24,12 @@ public class GridManager : MonoBehaviour
         }
         Instance = this;
     }
+
+    // ---------------- References ----------------
+
+    [SerializeField] private PlantBitManager plantBitManager;
+    [SerializeField] private PollutionManager pollutionManager;
+    [SerializeField] private GameManager gameManager;
 
     // ---------------- Grid Settings ----------------
     [Header("Grid Settings")]
@@ -70,6 +76,22 @@ public class GridManager : MonoBehaviour
                 tile.name = $"Tile ({x},{y})";
                 tiles[x, y] = tile;
 
+                GridVisualTile visualTile = tile.GetComponent<GridVisualTile>();
+                if (visualTile != null)
+                {
+                    visualTile.coords = new Vector2Int(x, y);
+                    visualTile.plantBitManager = plantBitManager;
+                    visualTile.pollutionManager = pollutionManager;
+                    visualTile.gameManager = gameManager;
+                }
+
+                TileActionBinder binder = tile.GetComponent<TileActionBinder>();
+                if (binder != null)
+                {
+                    binder.plantBitManager = plantBitManager;
+                    binder.pollutionManager = pollutionManager;
+                    binder.gameManager = gameManager;
+                }
             }
         }
 
@@ -78,6 +100,8 @@ public class GridManager : MonoBehaviour
         float totalHeight = (height - 1) * (tileSize + spacing);
         transform.localPosition = new Vector3(-totalWidth / 2f, 0, -totalHeight / 2f);
     }
+
+
 
 #if UNITY_EDITOR
     [ContextMenu("Clear Grid")]

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace PlantPollutionGame
+namespace Egglers
 {
     public class PollutionSource
     {
@@ -110,6 +110,7 @@ namespace PlantPollutionGame
                     PollutionTile tile = pollutionManager.GetOrCreateTile(neighborPos);
                     tile.AddPollution(pollutionType, currentEmissionRate);
                     tile.hopsFromSource = 1; // Adjacent to source = 1 hop
+                    GridEvents.PollutionUpdated(neighborPos);
                 }
             }
         }
@@ -123,6 +124,7 @@ namespace PlantPollutionGame
                 currentHP = 0;
                 OnDestroyed();
             }
+            GridEvents.PollutionUpdated(position);
         }
 
         private void OnDestroyed()

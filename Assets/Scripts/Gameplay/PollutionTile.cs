@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace PlantPollutionGame
+namespace Egglers
 {
     public class PollutionTile
     {
