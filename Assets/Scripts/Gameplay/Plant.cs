@@ -230,15 +230,9 @@ namespace Egglers
 
                         plantManager.AddResource(resourceGain);
 
-                        // Reduce pollution
+                        // Reduce pollution through PollutionManager (handles freezing to prevent race conditions)
                         float pollutionReduction = (attackDamage - tile.attackDamage) * 0.05f;
-                        tile.TakeDamage(pollutionReduction);
-
-                        // Check if tile should be removed
-                        if (tile.ShouldBeRemoved())
-                        {
-                            plantManager.RemovePollutionTile(neighborPos);
-                        }
+                        plantManager.pollutionManager.DamagePollutionAt(neighborPos, pollutionReduction);
                     }
                 }
             }

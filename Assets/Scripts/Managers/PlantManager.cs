@@ -387,10 +387,17 @@ namespace Egglers
                 }
             }
 
-            // Apply batched source damage
+            // Apply batched source damage and check for destruction
             foreach (var kvp in sourceDamage)
             {
-                kvp.Key.TakeDamage(kvp.Value);
+                PollutionSource source = kvp.Key;
+                source.TakeDamage(kvp.Value);
+                
+                // Remove source if destroyed (RemoveSourceAt handles disconnection)
+                if (source.ShouldBeDestroyed())
+                {
+                    pollutionManager.RemoveSourceAt(source.position.x, source.position.y);
+                }
             }
         }
     }

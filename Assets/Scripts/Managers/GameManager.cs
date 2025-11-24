@@ -24,7 +24,6 @@ namespace Egglers
 
         [Header("Tick Rates")]
         public float plantTickRate = 0.5f;
-        public float pollutionTickRate = 7.0f;
 
         [Header("Pollution Sources Setup")]
         public List<SourceSetup> sourcesSetup = new List<SourceSetup>();
@@ -35,7 +34,6 @@ namespace Egglers
         public System.Action<string> OnErrorMessage;
 
         private Coroutine plantTickCoroutine;
-        private Coroutine pollutionTickCoroutine;
 
         [System.Serializable]
         public class SourceSetup
@@ -74,6 +72,7 @@ namespace Egglers
             {
                 pollutionManager.gridSystem = gridSystem;
                 pollutionManager.plantManager = plantManager;
+                pollutionManager.CreateGrid(gridWidth, gridHeight); // Initialize pollution grid
             }
         }
         void Update()
@@ -106,6 +105,9 @@ namespace Egglers
                     sourceSetup.dormantDuration
                 );
             }
+            
+            // Start pollution source coroutines (each source pulses at its own rate)
+            pollutionManager.StartAllSourcePulses();
 
             // Start heart placement mode
             gameState = GameState.HeartPlacement;
@@ -145,13 +147,6 @@ namespace Egglers
                 StopCoroutine(plantTickCoroutine);
             }
             plantTickCoroutine = StartCoroutine(PlantTickCoroutine());
-
-            // Start pollution tick coroutine
-            if (pollutionTickCoroutine != null)
-            {
-                StopCoroutine(pollutionTickCoroutine);
-            }
-            pollutionTickCoroutine = StartCoroutine(PollutionTickCoroutine());
         }
 
         private IEnumerator PlantTickCoroutine()
@@ -162,17 +157,6 @@ namespace Egglers
                 CheckWinCondition();
 
                 yield return new WaitForSeconds(plantTickRate);
-            }
-        }
-
-        private IEnumerator PollutionTickCoroutine()
-        {
-            while (gameState == GameState.Playing)
-            {
-                pollutionManager.UpdatePollutionSpread();
-                pollutionManager.CheckHeartOverwhelm();
-
-                yield return new WaitForSeconds(pollutionTickRate);
             }
         }
 
@@ -213,12 +197,6 @@ namespace Egglers
                 StopCoroutine(plantTickCoroutine);
                 plantTickCoroutine = null;
             }
-
-            if (pollutionTickCoroutine != null)
-            {
-                StopCoroutine(pollutionTickCoroutine);
-                pollutionTickCoroutine = null;
-            }
         }
 
         public void PauseGame()
@@ -247,11 +225,14 @@ namespace Egglers
             // Clear all data
             plantManager.allPlants.Clear();
             plantManager.heartPlant = null;
-            pollutionManager.pollutedTiles.Clear();
-            pollutionManager.activeSources.Clear();
+            
+            // Clear pollution data (uses ResetPollutionSystem which clears grid, lists, and dictionaries)
+            pollutionManager.ResetPollutionSystem();
 
-            // Reinitialize
+            // Reinitialize grids
             gridSystem.Initialize(gridWidth, gridHeight);
+            pollutionManager.CreateGrid(gridWidth, gridHeight);
+            
             InitializeGame();
         }
 
