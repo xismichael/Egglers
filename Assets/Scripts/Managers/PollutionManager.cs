@@ -72,9 +72,9 @@ namespace Egglers
             foreach (var dir in directions)
             {
                 Vector2Int neighbor = pos + dir;
-                
+
                 // Only add if within bounds
-                if (neighbor.x >= 0 && neighbor.x < gridWidth && 
+                if (neighbor.x >= 0 && neighbor.x < gridWidth &&
                     neighbor.y >= 0 && neighbor.y < gridHeight)
                 {
                     adjacentPositions.Add(neighbor);
@@ -100,17 +100,17 @@ namespace Egglers
 
             // Add to PollutionManager grid
             grid[pos.x, pos.y] = newTile;
-            
+
             // Track in dictionary for quick lookup
             pollutedTiles[pos] = newTile;
-            
+
             // Synchronize with GridSystem
             if (gridSystem != null)
             {
                 gridSystem.SetTileState(pos, TileState.Pollution);
                 gridSystem.SetEntity(pos, newTile);
             }
-            
+            GridEvents.PollutionUpdated(pos);
             return newTile;
         }
 
@@ -146,6 +146,8 @@ namespace Egglers
             tile.pollutionSpreadRate += spreadRate;
             tile.pollutionStrength += strength;
             tile.pollutionResistance += resistance;
+
+            GridEvents.PollutionUpdated(tile.position);
         }
 
         /// <summary>
@@ -155,10 +157,10 @@ namespace Egglers
         {
             // Create source with default HP
             PollutionSource source = new PollutionSource(pos, spreadRate, strength, resistance, pulseRate, dormantDuration);
-            
+
             // Add to grid
             grid[pos.x, pos.y] = source;
-            
+
             // Track in lists
             pollutionSources.Add(source);
             activeSources.Add(source);
@@ -174,7 +176,7 @@ namespace Egglers
         {
             // Create source (type/tier parameters ignored, using emissionRate for all stats)
             PollutionSource source = new PollutionSource(
-                pos, 
+                pos,
                 emissionRate,           // SpreadRate
                 emissionRate,           // Strength
                 emissionRate * 0.5f,    // Resistance (half of emission rate)
@@ -182,20 +184,21 @@ namespace Egglers
                 dormantDuration,        // Dormant period before activation
                 hp                      // Hit points
             );
-            
+
             // Add to PollutionManager grid
             grid[pos.x, pos.y] = source;
-            
+
             // Track in lists
             pollutionSources.Add(source);
             activeSources.Add(source);
-            
+
             // Synchronize with GridSystem
             if (gridSystem != null)
             {
                 gridSystem.SetTileState(pos, TileState.PollutionSource);
                 gridSystem.SetEntity(pos, source);
             }
+            GridEvents.PollutionUpdated(pos);
         }
 
         /// <summary>
@@ -220,12 +223,12 @@ namespace Egglers
         {
             // Stop all pulse coroutines
             StopAllCoroutines();
-            
+
             // Clear tracking structures
             pollutionSources.Clear();
             activeSources.Clear();
             pollutedTiles.Clear();
-            
+
             // Clear the grid
             if (grid != null)
             {
@@ -263,13 +266,13 @@ namespace Egglers
                     source.connectedTiles.Remove(tile);
                 }
                 tile.connectedSources.Clear();
-                
+
                 // Remove from PollutionManager grid
                 grid[x, y] = null;
-                
+
                 // Remove from tracking dictionary
                 pollutedTiles.Remove(pos);
-                
+
                 // Synchronize with GridSystem
                 if (gridSystem != null)
                 {
@@ -283,10 +286,10 @@ namespace Egglers
                 // Remove from tracking lists
                 pollutionSources.Remove(source);
                 activeSources.Remove(source);
-                
+
                 // Remove from PollutionManager grid
                 grid[x, y] = null;
-                
+
                 // Synchronize with GridSystem
                 if (gridSystem != null)
                 {
@@ -294,6 +297,7 @@ namespace Egglers
                     gridSystem.RemoveEntity(pos);
                 }
             }
+            GridEvents.PollutionUpdated(pos);
         }
 
         /// <summary>
@@ -357,7 +361,7 @@ namespace Egglers
             {
                 // Freeze to prevent spreading/receiving while being modified
                 tile.isFrozen = true;
-                
+
                 // Calculate proportional reduction
                 float totalPollution = tile.GetTotalPollution();
                 if (totalPollution > 0)
@@ -379,6 +383,7 @@ namespace Egglers
                 {
                     tile.isFrozen = false; // Unfreeze for continued operation
                 }
+                GridEvents.PollutionUpdated(pos);
             }
         }
 
@@ -406,14 +411,14 @@ namespace Egglers
                     tile.connectedSources.Remove(source);
                 }
                 source.connectedTiles.Clear();
-                
+
                 // Remove from tracking lists
                 pollutionSources.Remove(source);
                 activeSources.Remove(source);
-                
+
                 // Remove from PollutionManager grid
                 grid[x, y] = null;
-                
+
                 // Synchronize with GridSystem
                 if (gridSystem != null)
                 {
@@ -467,6 +472,7 @@ namespace Egglers
             if (gridObject is PollutionTile tile)
             {
                 tile.isFrozen = true;
+                GridEvents.PollutionUpdated(tile.position);
             }
         }
 
@@ -488,7 +494,7 @@ namespace Egglers
                 source.timeSinceCreation += Time.deltaTime;
                 yield return null; // Wait one frame
             }
-            
+
             // Phase 2: Active pulsing
             while (pollutionSources.Contains(source))
             {
