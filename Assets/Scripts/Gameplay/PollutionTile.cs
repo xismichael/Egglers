@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace PlantPollutionGame
+namespace Egglers
 {
     public class PollutionTile
     {
@@ -11,7 +11,7 @@ namespace PlantPollutionGame
         public float pollutionStrength; // the attack damage of the tile
         public float pollutionResistance; // how quick for the plant to consume the pollution
         
-        public bool isFrozen; // if true, cannot be added to or spread
+        public bool isFrozen; // if true, cannot b added to or spread
         
         public HashSet<PollutionSource> connectedSources = new HashSet<PollutionSource>(); // tracks which sources this tile is connected to
 
