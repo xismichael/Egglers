@@ -1,148 +1,132 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Egglers
 {
     public class PollutionSource
     {
-        // Position on grid
         public Vector2Int position;
-
-        // Source properties
-        public PollutionType pollutionType;
-        public SourceTier tier;
-        public SourceState state;
-
-        // HP
-        public float maxHP;
-        public float currentHP;
-
-        // Emission
-        public float baseEmissionRate;
-        public float currentEmissionRate;
-        public float tickInterval;
-
-        // Awakening
-        public float dormantDuration; // How long before source activates
-
-        // References (set externally)
-        public PollutionManager pollutionManager;
-        public GridSystem gridSystem;
-
-        public PollutionSource(Vector2Int pos, PollutionType type, SourceTier sourceTier, float hp, float emission, float interval, float dormantTime = 0f)
+        
+        // Pollution stats (what it emits)
+        public float pollutionSpreadRate;
+        public float pollutionStrength;
+        public float pollutionResistance;
+        
+        // Timing
+        public float pulseRate; // how often it spreads (in seconds)
+        public float dormantDuration; // delay before it starts (in seconds)
+        
+        // Internal tracking
+        public float timeSinceCreation;
+        public bool IsActive => timeSinceCreation >= dormantDuration;
+        
+        // Network tracking
+        public List<PollutionTile> connectedTiles = new List<PollutionTile>(); // all tiles connected to this source
+        
+        public PollutionSource(Vector2Int pos, float spreadRate, float strength, float resistance, float pulse, float dormant)
         {
             position = pos;
-            pollutionType = type;
-            tier = sourceTier;
-            maxHP = hp;
-            currentHP = hp;
-            baseEmissionRate = emission;
-            currentEmissionRate = emission;
-            tickInterval = interval;
-            dormantDuration = dormantTime;
-
-            // Set initial state
-            state = dormantTime > 0 ? SourceState.Dormant : SourceState.Active;
+            pollutionSpreadRate = spreadRate;
+            pollutionStrength = strength;
+            pollutionResistance = resistance;
+            pulseRate = pulse;
+            dormantDuration = dormant;
+            timeSinceCreation = 0f;
         }
-
-        public void CheckAwakening(float gameTime)
+        
+        public float GetTotalPollution()
         {
-            if (state == SourceState.Dormant && gameTime >= dormantDuration)
-            {
-                // Activate the source
-                state = SourceState.Active;
-                Debug.Log($"Pollution source at {position} has activated!");
-            }
-            else if (state == SourceState.Active)
-            {
-                // Check if should awaken (specific timing based on tier)
-                bool shouldAwaken = false;
-
-                switch (tier)
-                {
-                    case SourceTier.Weak:
-                        // Weak sources don't awaken
-                        break;
-                    case SourceTier.Medium:
-                        // Awaken at 2 minutes (120 seconds)
-                        if (gameTime >= 120f)
-                        {
-                            shouldAwaken = true;
-                        }
-                        break;
-                    case SourceTier.Strong:
-                        // Awaken at 5 minutes (300 seconds)
-                        if (gameTime >= 300f)
-                        {
-                            shouldAwaken = true;
-                        }
-                        break;
-                }
-
-                if (shouldAwaken && state != SourceState.Awakened)
-                {
-                    state = SourceState.Awakened;
-                    currentEmissionRate = baseEmissionRate * 2f; // Double emission
-                    maxHP *= 1.5f; // 50% more HP
-                    currentHP = maxHP; // Restore to new max
-                    Debug.Log($"Pollution source at {position} has awakened! Emission doubled, HP increased!");
-                }
-            }
+            return pollutionSpreadRate + pollutionStrength + pollutionResistance;
         }
-
-        public void OnTick()
+        
+        public void Pulse()
         {
-            // Only emit if active or awakened
-            if (state == SourceState.Dormant)
+            // Only pulse if active
+            if (!IsActive)
             {
                 return;
             }
-
-            // Emit to immediately adjacent tiles only (4-directional)
-            var neighbors = gridSystem.GetNeighbors(position, includeDiagonal: false);
-
-            foreach (Vector2Int neighborPos in neighbors)
+            
+            // Take snapshot of tiles before the pulse, so new tiles dont spread yet
+            List<PollutionTile> tilesBeforePulse = new List<PollutionTile>(connectedTiles);
+            
+            // Get adjacent positions
+            List<Vector2Int> adjacentPositions = PollutionManager.Instance.GetAdjacentPositions(position);
+            
+            float myTotalPollution = GetTotalPollution();
+            float maxNeighborPollution = myTotalPollution * 0.9f;
+            
+            // Calculate 10% to emit (like tiles)
+            float emitSpreadRate = pollutionSpreadRate * 0.1f;
+            float emitStrength = pollutionStrength * 0.1f;
+            float emitResistance = pollutionResistance * 0.1f;
+            float totalEmit = emitSpreadRate + emitStrength + emitResistance;
+            
+            foreach (Vector2Int neighborPos in adjacentPositions)
             {
-                TileState tileState = gridSystem.GetTileState(neighborPos);
-
-                // Can only emit to empty or pollution tiles
-                if (tileState == TileState.Empty || tileState == TileState.Pollution)
+                object neighborObject = PollutionManager.Instance.grid[neighborPos.x, neighborPos.y];
+                
+                // If empty (null), create new tile
+                if (neighborObject == null)
                 {
-                    PollutionTile tile = pollutionManager.GetOrCreateTile(neighborPos);
-                    tile.AddPollution(pollutionType, currentEmissionRate);
-                    tile.hopsFromSource = 1; // Adjacent to source = 1 hop
-                    GridEvents.PollutionUpdated(neighborPos);
+                    PollutionTile newTile = PollutionManager.Instance.AddPollutionToPosition(neighborPos, emitSpreadRate, emitStrength, emitResistance);
+                    // Connect this source to the new tile
+                    ConnectToTile(newTile);
                 }
+                // If it's a PollutionTile
+                else if (neighborObject is PollutionTile neighborTile)
+                {
+                    // Skip frozen tiles
+                    if (neighborTile.isFrozen)
+                    {
+                        continue;
+                    }
+                    
+                    // Add pollution only if under 90% cap
+                    float neighborCurrent = neighborTile.GetTotalPollution();
+                    if (neighborCurrent < maxNeighborPollution)
+                    {
+                        // Calculate how much room is left
+                        float roomLeft = maxNeighborPollution - neighborCurrent;
+                        
+                        // If adding full amount would exceed cap, scale it down
+                        if (totalEmit > roomLeft)
+                        {
+                            float scaleFactor = roomLeft / totalEmit;
+                            PollutionManager.Instance.AddPollutionToTile(neighborTile, emitSpreadRate * scaleFactor, emitStrength * scaleFactor, emitResistance * scaleFactor);
+                        }
+                        else
+                        {
+                            PollutionManager.Instance.AddPollutionToTile(neighborTile, emitSpreadRate, emitStrength, emitResistance);
+                        }
+                        
+                        // Connect this source to the tile
+                        ConnectToTile(neighborTile);
+                    }
+                }
+                // If it's another PollutionSource, skip
             }
-        }
-
-        public void TakeDamage(float amount)
-        {
-            currentHP -= amount;
-
-            if (currentHP <= 0)
+            
+            // Now spread tiles that existed BEFORE this pulse (not newly created ones)
+            foreach (PollutionTile tile in tilesBeforePulse)
             {
-                currentHP = 0;
-                OnDestroyed();
+                tile.Spread();
             }
-            GridEvents.PollutionUpdated(position);
         }
-
-        private void OnDestroyed()
+        
+        private void ConnectToTile(PollutionTile tile)
         {
-            Debug.Log($"Pollution source at {position} has been destroyed!");
-            // PollutionManager will handle removal
-            pollutionManager.RemoveSource(this);
-        }
-
-        public bool IsAlive()
-        {
-            return currentHP > 0;
-        }
-
-        public bool IsActive()
-        {
-            return state == SourceState.Active || state == SourceState.Awakened;
+            // Add source to tile's connected sources
+            if (!tile.connectedSources.Contains(this))
+            {
+                tile.connectedSources.Add(this);
+            }
+            
+            // Add tile to source's connected tiles
+            if (!connectedTiles.Contains(tile))
+            {
+                connectedTiles.Add(tile);
+            }
         }
     }
 }
-

@@ -5,215 +5,229 @@ namespace Egglers
 {
     public class PollutionManager : MonoBehaviour
     {
-        // Grid reference
-        public GridSystem gridSystem;
-        public PlantManager plantManager;
+        public static PollutionManager Instance { get; private set; }
 
-        // Pollution tracking
-        public Dictionary<Vector2Int, PollutionTile> pollutedTiles = new Dictionary<Vector2Int, PollutionTile>();
-        public List<PollutionSource> activeSources = new List<PollutionSource>();
+        public object[,] grid;
+        public int gridWidth;
+        public int gridHeight;
 
-        // Configuration
-        [Header("Pollution Configuration")]
-        public float baseSpreadRate = 1.0f;
-        public float pollutionTickRate = 7.0f; // 5-10 seconds
+        public List<PollutionSource> pollutionSources = new List<PollutionSource>();
 
-        // Game time tracking for source awakening
-        private float gameTime = 0f;
-
-        private void Update()
+        void Awake()
         {
-            gameTime += Time.deltaTime;
-        }
-
-        public PollutionSource CreateSource(Vector2Int position, PollutionType type, SourceTier tier, float hp, float emission, float tickInterval, float dormantDuration = 0f)
-        {
-            PollutionSource source = new PollutionSource(position, type, tier, hp, emission, tickInterval, dormantDuration);
-            source.pollutionManager = this;
-            source.gridSystem = gridSystem;
-
-            activeSources.Add(source);
-            gridSystem.SetTileState(position, TileState.PollutionSource);
-            gridSystem.SetEntity(position, source);
-
-            GridEvents.PollutionUpdated(position);
-            return source;
-        }
-
-        public void RemoveSource(PollutionSource source)
-        {
-            if (activeSources.Contains(source))
+            if (Instance != null)
             {
-                activeSources.Remove(source);
-                gridSystem.SetTileState(source.position, TileState.Empty);
-                gridSystem.RemoveEntity(source.position);
-
-                GridEvents.PollutionUpdated(source.position);
+                Destroy(gameObject);
+                return;
             }
+            Instance = this;
         }
 
-        public PollutionTile GetOrCreateTile(Vector2Int pos)
+        public void CreateGrid(int width, int height)
         {
-            if (pollutedTiles.ContainsKey(pos))
+            gridWidth = width;
+            gridHeight = height;
+            grid = new object[width, height];
+        }
+
+        public List<Vector2Int> GetAdjacentPositions(Vector2Int pos)
+        {
+            List<Vector2Int> adjacentPositions = new List<Vector2Int>();
+
+            // 4-directional: up, down, left, right
+            Vector2Int[] directions = new Vector2Int[]
             {
-                return pollutedTiles[pos];
+                new Vector2Int(0, 1),
+                new Vector2Int(0, -1),
+                new Vector2Int(-1, 0),
+                new Vector2Int(1, 0)
+            };
+
+            foreach (var dir in directions)
+            {
+                Vector2Int neighbor = pos + dir;
+                
+                // Check if in bounds
+                if (neighbor.x >= 0 && neighbor.x < gridWidth && 
+                    neighbor.y >= 0 && neighbor.y < gridHeight)
+                {
+                    adjacentPositions.Add(neighbor);
+                }
             }
 
-            // Create new tile
+            return adjacentPositions;
+        }
+
+        public PollutionTile AddPollutionToPosition(Vector2Int pos, float spreadRate, float strength, float resistance)
+        {
+            // Create new PollutionTile at this position
             PollutionTile newTile = new PollutionTile(pos);
-            newTile.hopsFromSource = int.MaxValue; // Init to max
-            newTile.baseSpreadRate = baseSpreadRate;
+            newTile.pollutionSpreadRate = spreadRate;
+            newTile.pollutionStrength = strength;
+            newTile.pollutionResistance = resistance;
+            newTile.isFrozen = false; // Tiles start unfrozen
 
-            gridSystem.SetTileState(pos, TileState.Pollution);
-            gridSystem.SetEntity(pos, newTile);
-            pollutedTiles[pos] = newTile;
-
+            // Add to grid
+            grid[pos.x, pos.y] = newTile;
+            
             return newTile;
         }
 
-        public void RemovePollutionTile(Vector2Int pos)
+        public void AddPollutionToTile(PollutionTile tile, float spreadRate, float strength, float resistance)
         {
-            if (pollutedTiles.ContainsKey(pos))
+            // Add pollution to existing tile
+            tile.pollutionSpreadRate += spreadRate;
+            tile.pollutionStrength += strength;
+            tile.pollutionResistance += resistance;
+        }
+
+        public void AddPollutionSource(Vector2Int pos, float spreadRate, float strength, float resistance, float pulseRate, float dormantDuration)
+        {
+            // Create new pollution source
+            PollutionSource source = new PollutionSource(pos, spreadRate, strength, resistance, pulseRate, dormantDuration);
+            
+            // Add to grid
+            grid[pos.x, pos.y] = source;
+            
+            // Add to sources list
+            pollutionSources.Add(source);
+        }
+
+        public void StartAllSourcePulses()
+        {
+            foreach (PollutionSource source in pollutionSources)
             {
-                pollutedTiles.Remove(pos);
-                gridSystem.SetTileState(pos, TileState.Empty);
-                gridSystem.RemoveEntity(pos);
+                StartCoroutine(SourcePulseCoroutine(source));
             }
         }
 
-        public float GetPollutionLevelAt(Vector2Int pos)
+        public void ResetPollutionSystem()
         {
-            if (pollutedTiles.TryGetValue(pos, out PollutionTile tile))
+            // Stop all coroutines
+            StopAllCoroutines();
+            
+            // Clear all data structures
+            pollutionSources.Clear();
+            
+            // Clear grid
+            if (grid != null)
             {
-                return tile.totalPollutionLevel;
-            }
-            return 0f;
-        }
-
-        public void UpdatePollutionSpread()
-        {
-            // Check source awakening
-            foreach (PollutionSource source in activeSources)
-            {
-                source.CheckAwakening(gameTime);
-            }
-
-            // 1. Sources emit to adjacent tiles only
-            foreach (PollutionSource source in activeSources)
-            {
-                source.OnTick();
-            }
-
-            // 2. Tiles spread to neighbors
-            List<SpreadOperation> spreads = new List<SpreadOperation>();
-
-            // Make a copy to avoid modifying collection during iteration
-            List<PollutionTile> tilesToProcess = new List<PollutionTile>(pollutedTiles.Values);
-
-            foreach (PollutionTile tile in tilesToProcess)
-            {
-                tile.RecalculateStats();
-
-                List<Vector2Int> neighbors = gridSystem.GetNeighbors(tile.position, includeDiagonal: false);
-
-                foreach (Vector2Int neighborPos in neighbors)
+                for (int x = 0; x < gridWidth; x++)
                 {
-                    TileState state = gridSystem.GetTileState(neighborPos);
-
-                    // Can spread to empty or pollution tiles
-                    if (state == TileState.Empty || state == TileState.Pollution)
+                    for (int y = 0; y < gridHeight; y++)
                     {
-                        // Distance-based decay
-                        float decay = 1.0f / (1.0f + tile.hopsFromSource * 0.2f);
-                        float spreadAmount = tile.spreadSpeed * decay;
-
-                        // Get or prepare neighbor tile
-                        PollutionTile neighbor = GetOrCreateTile(neighborPos);
-
-                        // Fountain rule: only spread if neighbor has LESS total pollution
-                        if (neighbor.totalPollutionLevel < tile.totalPollutionLevel)
-                        {
-                            SpreadOperation spread = new SpreadOperation();
-                            spread.targetPosition = neighborPos;
-                            spread.pollutionType = tile.dominantType;
-                            spread.amount = spreadAmount;
-                            spread.hops = tile.hopsFromSource + 1;
-
-                            spreads.Add(spread);
-                        }
+                        grid[x, y] = null;
                     }
                 }
             }
-
-            // 3. Apply all spreads (allows blending from multiple sources)
-            foreach (SpreadOperation spread in spreads)
-            {
-                if (pollutedTiles.TryGetValue(spread.targetPosition, out PollutionTile targetTile))
-                {
-                    targetTile.AddPollution(spread.pollutionType, spread.amount);
-                    targetTile.hopsFromSource = Mathf.Min(targetTile.hopsFromSource, spread.hops);
-
-                    GridEvents.PollutionUpdated(spread.targetPosition);
-                }
-            }
-
-            // 4. Check for tiles that should be removed
-            List<Vector2Int> tilesToRemove = new List<Vector2Int>();
-            foreach (var kvp in pollutedTiles)
-            {
-                if (kvp.Value.ShouldBeRemoved())
-                {
-                    tilesToRemove.Add(kvp.Key);
-                }
-            }
-
-            foreach (Vector2Int pos in tilesToRemove)
-            {
-                RemovePollutionTile(pos);
-                GridEvents.PollutionUpdated(pos);
-            }
         }
 
-        public void CheckHeartOverwhelm()
+        // Helper functions for plant manager to interact with pollution
+        public void RemovePollutionAt(int x, int y)
         {
-            if (plantManager == null || plantManager.heartPlant == null)
+            // Check bounds
+            if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
             {
                 return;
             }
 
-            Plant heart = plantManager.heartPlant;
-            List<Vector2Int> neighbors = gridSystem.GetNeighbors(heart.position, includeDiagonal: false);
+            object gridObject = grid[x, y];
 
-            foreach (Vector2Int neighborPos in neighbors)
+            if (gridObject is PollutionTile tile)
             {
-                if (gridSystem.GetTileState(neighborPos) == TileState.Pollution)
+                // Disconnect from all sources
+                foreach (PollutionSource source in tile.connectedSources)
                 {
-                    PollutionTile tile = gridSystem.GetEntity<PollutionTile>(neighborPos);
-                    if (tile != null)
-                    {
-                        float effectiveATD = heart.attackDamage;
-
-                        // Acidic modifier
-                        if (tile.dominantType == PollutionType.Acidic)
-                        {
-                            effectiveATD *= 0.67f;
-                        }
-
-                        // Loss condition: ANY adjacent pollution stronger than Heart
-                        if (effectiveATD <= tile.attackDamage)
-                        {
-                            // Trigger loss condition
-                            GameManager gameManager = FindFirstObjectByType<GameManager>();
-                            if (gameManager != null)
-                            {
-                                gameManager.TriggerLoss();
-                            }
-                            return;
-                        }
-                    }
+                    source.connectedTiles.Remove(tile);
                 }
+                tile.connectedSources.Clear();
+                
+                grid[x, y] = null;
+            }
+            else if (gridObject is PollutionSource source)
+            {
+                pollutionSources.Remove(source);
+                grid[x, y] = null;
+            }
+        }
+
+        public void ReducePollutionAt(int x, int y, float percentage)
+        {
+            // Check bounds
+            if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
+            {
+                return;
+            }
+
+            object gridObject = grid[x, y];
+
+            if (gridObject is PollutionTile tile)
+            {
+                // Freeze tile to prevent it from spreading/receiving while being reduced
+                tile.isFrozen = true;
+                
+                // Reduce by percentage
+                float reductionFactor = 1f - (percentage / 100f);
+                tile.pollutionSpreadRate *= reductionFactor;
+                tile.pollutionStrength *= reductionFactor;
+                tile.pollutionResistance *= reductionFactor;
+
+                // Remove if pollution is too low
+                if (tile.GetTotalPollution() < 0.1f)
+                {
+                    RemovePollutionAt(x, y);
+                }
+            }
+        }
+
+        public void RemoveSourceAt(int x, int y)
+        {
+            // Check bounds
+            if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
+            {
+                return;
+            }
+
+            object gridObject = grid[x, y];
+
+            if (gridObject is PollutionSource source)
+            {
+                pollutionSources.Remove(source);
+                grid[x, y] = null;
+            }
+        }
+
+        public void FreezeTileAt(int x, int y)
+        {
+            // Check bounds
+            if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
+            {
+                return;
+            }
+
+            object gridObject = grid[x, y];
+
+            if (gridObject is PollutionTile tile)
+            {
+                tile.isFrozen = true;
+            }
+        }
+
+        System.Collections.IEnumerator SourcePulseCoroutine(PollutionSource source)
+        {
+            // Wait for dormant period
+            while (source.timeSinceCreation < source.dormantDuration)
+            {
+                source.timeSinceCreation += Time.deltaTime;
+                yield return null;
+            }
+            
+            // Continuously pulse at the source's rate
+            while (pollutionSources.Contains(source))
+            {
+                source.Pulse();
+                yield return new WaitForSeconds(source.pulseRate);
             }
         }
     }
 }
-
