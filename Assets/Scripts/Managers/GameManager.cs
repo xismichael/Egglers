@@ -114,9 +114,11 @@ namespace Egglers
                 return;
             }
 
+
             plantManager.InitializeHeart(pos);
-            StartGameLoops();
             gameState = GameState.Playing;
+
+            StartGameLoops();
             Debug.Log("Game started!");
         }
 
@@ -126,6 +128,7 @@ namespace Egglers
             {
                 StopCoroutine(plantTickCoroutine);
             }
+            // Debug.Log("Game LOOPING!");
 
             plantTickCoroutine = StartCoroutine(PlantTickCoroutine());
         }
@@ -134,6 +137,8 @@ namespace Egglers
         {
             while (gameState == GameState.Playing)
             {
+                // Debug.Log("[Tick] PlantTickCoroutine running");
+
                 plantManager.UpdatePlants(plantManager.heart);
                 CheckWinCondition();
                 yield return new WaitForSeconds(plantTickRate);
@@ -142,6 +147,7 @@ namespace Egglers
 
         public void CheckWinCondition()
         {
+            Debug.Log("CheckWinCondition: " + pollutionManager.activeSources.Count);
             if (pollutionManager.activeSources.Count == 0)
             {
                 TriggerWin();

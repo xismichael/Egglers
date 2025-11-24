@@ -26,7 +26,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5434329988242892076}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: -40}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -211,6 +211,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   actions:
   - actionType: 5
+  - actionType: 6
 --- !u!114 &1792733066378950668
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -226,10 +227,6 @@ MonoBehaviour:
   plantBitManager: {fileID: 0}
   pollutionManager: {fileID: 0}
   gameManager: {fileID: 0}
-  plant1: {fileID: 7838884833924085954}
-  plant2: {fileID: 7468352268202211967}
-  plant3: {fileID: 7639820867750138124}
-  tmp: {fileID: 8869066935436344105}
 --- !u!114 &87511664093395086
 MonoBehaviour:
   m_ObjectHideFlags: 0

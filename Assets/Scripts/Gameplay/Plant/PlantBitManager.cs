@@ -3,7 +3,6 @@ using UnityEngine;
 
 namespace Egglers
 {
-
     // Struct for grafting buffer
     [System.Serializable]
     public struct GraftBuffer
@@ -23,6 +22,7 @@ namespace Egglers
 
         public void Update(int leaf, int root, int fruit)
         {
+            Debug.Log($"[PlantBitManager] GraftBuffer updated -> L:{leaf} R:{root} F:{fruit}");
             leafCount = leaf;
             rootCount = root;
             fruitCount = fruit;
@@ -31,6 +31,7 @@ namespace Egglers
 
         public void Clear()
         {
+            Debug.Log("[PlantBitManager] GraftBuffer cleared");
             leafCount = 0;
             rootCount = 0;
             fruitCount = 0;
@@ -79,19 +80,24 @@ namespace Egglers
         /// </summary>
         public void Initialize(GridSystem sharedGrid)
         {
+            Debug.Log("[PlantBitManager] Initializing manager with shared grid");
             gameGrid = sharedGrid;
             graftBuffer = new GraftBuffer(0, 0, 0, false);
         }
 
         public void InitializeHeart(Vector2Int pos)
         {
+            Debug.Log($"[PlantBitManager] Initializing Heart at {pos}");
+
             heart = new PlantBit(pos, heartBitData, this, true,
                 heartStartingLeaf, heartStartingRoot, heartStartingFruit, heartStartingMaxComponent);
 
-            gameGrid.SetEntity(pos, heart); // Set in unified grid
+            gameGrid.SetEntity(heart);
 
-            maxEnergy = 100f;
-            currentEnergy = 10f;
+            maxEnergy = startingMaxEnergy;
+            currentEnergy = startingEnergy;
+
+            Debug.Log($"[PlantBitManager] Heart placed at {pos} | Energy: {currentEnergy}/{maxEnergy}");
 
             GridEvents.PlantUpdated(pos);
         }
@@ -99,6 +105,8 @@ namespace Egglers
         public void UpdatePlants(PlantBit plantBit)
         {
             if (plantBit == null) return;
+
+            // Debug.Log($"[PlantBitManager] TickUpdate root at {plantBit.position}");
 
             plantBit.TickUpdate();
 
@@ -112,8 +120,10 @@ namespace Egglers
         {
             if (parent == null) return;
 
+            Debug.Log($"[PlantBitManager] Creating sprout at {targetPos} (parent: {parent.position})");
+
             PlantBit child = new PlantBit(targetPos, plantBitData, parent);
-            gameGrid.SetEntity(targetPos, child);
+            gameGrid.SetEntity(child);
 
             GridEvents.PlantUpdated(targetPos);
         }
@@ -122,12 +132,13 @@ namespace Egglers
         {
             if (plantBit == null) return;
 
+            Debug.Log($"[PlantBitManager] KillPlantBit called at {plantBit.position}");
+
             if (plantBit == heart)
             {
-                Debug.Log("GAME OVER: HEART IS DEAD");
+                Debug.Log("[PlantBitManager] GAME OVER: HEART IS DEAD");
             }
 
-            gameGrid.RemoveEntity(plantBit.position);
             plantBit.Kill();
 
             GridEvents.PlantUpdated(plantBit.position);
@@ -136,30 +147,46 @@ namespace Egglers
         public void AddMaxEnergy(float amount)
         {
             maxEnergy += amount;
+            Debug.Log($"[PlantBitManager] MaxEnergy increased by {amount} → {maxEnergy}");
         }
 
         public void RemoveMaxEnergy(float amount)
         {
             maxEnergy = Mathf.Max(maxEnergy - amount, 0);
             currentEnergy = Mathf.Min(currentEnergy, maxEnergy);
+
+            Debug.Log($"[PlantBitManager] MaxEnergy decreased by {amount} → {maxEnergy} | currentEnergy={currentEnergy}");
         }
 
         public void AddEnergy(float amount)
         {
             currentEnergy = Mathf.Min(currentEnergy + amount, maxEnergy);
+            // Debug.Log($"[PlantBitManager] Added {amount} energy → {currentEnergy}/{maxEnergy}");
         }
 
         public bool RemoveEnergy(float amount)
         {
-            if (currentEnergy < amount) return false;
+            if (currentEnergy < amount)
+            {
+                // Debug.Log($"[PlantBitManager] RemoveEnergy FAILED ({currentEnergy}/{amount})");
+                return false;
+            }
+
             currentEnergy -= amount;
+            // Debug.Log($"[PlantBitManager] RemoveEnergy {amount} → {currentEnergy}/{maxEnergy}");
             return true;
         }
 
         public void ApplyGraftAtPosition(Vector2Int pos)
         {
+            Debug.Log($"[PlantBitManager] ApplyGraftAtPosition {pos}");
+
             PlantBit plantBit = gameGrid.GetEntity<PlantBit>(pos);
-            if (plantBit == null || !graftBuffer.hasContent) return;
+            if (plantBit == null || !graftBuffer.hasContent)
+            {
+                Debug.Log($"[PlantBitManager] Cannot apply graft at {pos} (missing plant or empty graft buffer)");
+                return;
+            }
 
             plantBit.ApplyGraft(graftBuffer);
             GridEvents.PlantUpdated(pos);
@@ -167,8 +194,14 @@ namespace Egglers
 
         public void RemoveGraftAtPosition(Vector2Int pos, int leaf, int root, int fruit)
         {
+            Debug.Log($"[PlantBitManager] RemoveGraftAtPosition {pos} → L:{leaf} R:{root} F:{fruit}");
+
             PlantBit plantBit = gameGrid.GetEntity<PlantBit>(pos);
-            if (plantBit == null) return;
+            if (plantBit == null)
+            {
+                Debug.Log($"[PlantBitManager] RemoveGraft failed at {pos}: no plant found");
+                return;
+            }
 
             plantBit.RemoveGraft(leaf, root, fruit);
             GridEvents.PlantUpdated(pos);
@@ -176,7 +209,9 @@ namespace Egglers
 
         public float GetPollutionAtTile(Vector2Int pos)
         {
-            return pollutionManager?.GetPollutionLevelAt(pos) ?? 0f;
+            float lvl = pollutionManager?.GetPollutionLevelAt(pos) ?? 0f;
+            Debug.Log($"[PlantBitManager] GetPollutionAtTile {pos} → {lvl}");
+            return lvl;
         }
     }
 }

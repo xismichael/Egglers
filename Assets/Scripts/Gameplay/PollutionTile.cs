@@ -100,15 +100,23 @@ namespace Egglers
             float totalPollution = GetTotalPollution();
             if (totalPollution <= 0) return;
 
-            // Calculate reduction ratio (clamped to 100%)
-            float ratio = damage / totalPollution;
-            float reduction = Mathf.Min(ratio, 1.0f);
+            // Determine reduction ratio (clamped to 100%)
+            float ratio = Mathf.Clamp01(damage / totalPollution);
 
-            // Reduce all stats proportionally
-            pollutionSpreadRate *= (1f - reduction);
-            pollutionStrength *= (1f - reduction);
-            pollutionResistance *= (1f - reduction);
+            // Reduce pollution stats proportionally
+            pollutionStrength *= (1f - ratio);
+            pollutionSpreadRate *= (1f - ratio);
+            pollutionResistance *= (1f - ratio);
+
+            // If pollution fully depleted, remove only this PollutionTile from the grid
+            if (GetTotalPollution() <= 0f)
+            {
+                Debug.Log($"[PollutionTile] Pollution depleted at {position}. Removing tile.");
+                PollutionManager.Instance.gameGrid.RemoveEntity(this);
+                GridEvents.PollutionUpdated(position);
+            }
         }
+
 
         /// <summary>
         /// Checks if pollution is too weak to persist (total < 0.1).

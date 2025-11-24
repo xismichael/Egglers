@@ -39,11 +39,12 @@ namespace Egglers
                 TileActionType.Plant2 => tile => SetActivePlant(tile, 1),
                 TileActionType.Plant3 => tile => SetActivePlant(tile, 2),
                 TileActionType.Billboard => tile => SetBillboard(tile, "Hello World!"),
-                // TileActionType.SpawnPollution => SpawnPollution,
                 TileActionType.PlaceHeart => PlaceHeart,
+                TileActionType.Debug => DebugTile, // <-- New debug action
                 _ => null
             };
         }
+
 
         // --------------------------
         // Action callbacks
@@ -64,28 +65,70 @@ namespace Egglers
             visual.SetBillboardText(text);
         }
 
-        // private void SpawnPollution(GameObject tile)
-        // {
-        //     if (pollutionManager == null)
-        //     {
-        //         Debug.LogWarning("No PollutionManager assigned.");
-        //         return;
-        //     }
+        private void DebugTile(GameObject tile)
+        {
+            if (tile == null) return;
 
-        //     GridVisualTile visual = tile.GetComponent<GridVisualTile>();
-        //     if (visual == null || plantBitManager == null) return;
+            GridVisualTile visual = tile.GetComponent<GridVisualTile>();
+            if (visual == null)
+            {
+                Debug.Log("[DebugTile] No GridVisualTile component found.");
+                return;
+            }
 
-        //     Vector2Int pos = visual.coords;
+            Vector2Int pos = visual.coords;
+            Debug.Log($"[DebugTile] Tile at {pos}");
 
-        //     // Use the unified grid to set a PollutionTile
-        //     if (!plantBitManager.gameGrid.HasEntity(pos))
-        //     {
-        //         PollutionTile newTile = new PollutionTile(pos);
-        //         plantBitManager.gameGrid.SetEntity(pos, newTile);
-        //         plantBitManager.gameGrid.SetTileState(pos, TileState.Pollution);
-        //         GridEvents.PollutionUpdated(pos);
-        //     }
-        // }
+            // Plant data
+            PlantBit plant = plantBitManager?.gameGrid.GetEntity<PlantBit>(pos);
+            if (plant != null)
+            {
+                Debug.Log($"  PlantBit: Heart={plant.isHeart}, Phase={plant.phase}, " +
+                          $"Leaf={plant.leafCount}+{plant.graftedLeafCount}, " +
+                          $"Root={plant.rootCount}+{plant.graftedRootCount}, " +
+                          $"Fruit={plant.fruitCount}+{plant.graftedFruitCount}, " +
+                          $"EnergyStorage={plant.energyStorage}, Attack={plant.attackDamage}");
+            }
+            else
+            {
+                Debug.Log("  No PlantBit on this tile.");
+            }
+
+            // PollutionTile data
+            PollutionTile pollution = pollutionManager?.gameGrid.GetEntity<PollutionTile>(pos);
+            if (pollution != null)
+            {
+                Debug.Log($"  PollutionTile: SpreadRate={pollution.pollutionSpreadRate}, " +
+                          $"Strength={pollution.pollutionStrength}, Resistance={pollution.pollutionResistance}, " +
+                          $"Total={pollution.GetTotalPollution()}, ConnectedSources={pollution.connectedSources.Count}");
+            }
+            else
+            {
+                Debug.Log("  No PollutionTile on this tile.");
+            }
+
+            // PollutionSource data
+            PollutionSource source = pollutionManager?.gameGrid.GetEntity<PollutionSource>(pos);
+            if (source != null)
+            {
+                Debug.Log($"  PollutionSource: HP={source.currentHp}/{source.maxHp}, " +
+                          $"SpreadRate={source.pollutionSpreadRate}, Strength={source.pollutionStrength}, " +
+                          $"Resistance={source.pollutionResistance}, PulseRate={source.pulseRate}, " +
+                          $"Dormant={source.dormantDuration}, Active={source.IsActive}, " +
+                          $"ConnectedTiles={source.connectedTiles.Count}");
+            }
+            else
+            {
+                Debug.Log("  No PollutionSource on this tile.");
+            }
+
+            // Tile state
+            if (plantBitManager != null)
+            {
+                TileState state = plantBitManager.gameGrid.GetTileState(pos);
+                Debug.Log($"  TileState: {state}");
+            }
+        }
 
         private void PlaceHeart(GameObject tile)
         {

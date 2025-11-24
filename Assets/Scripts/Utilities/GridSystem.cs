@@ -5,40 +5,36 @@ using UnityEngine;
 namespace Egglers
 {
     /// <summary>
-    /// Unified grid system for plants, pollution tiles, and sources.
-    /// Replaces both old GameGrid and GridSystem.
+    /// Unified grid system for plants, pollution tiles, and pollution sources.
+    /// Supports multiple entities per tile and type-safe access by entity instance or position.
     /// </summary>
     public class GridSystem
     {
         private int width;
         private int height;
 
-        // Tile state for quick reference
         private TileState[,] tileStates;
 
-        // Entities stored by position
-        private Dictionary<Vector2Int, object> entities;
+        // Dictionary of position → list of entities at that tile
+        private Dictionary<Vector2Int, List<object>> entities;
 
         public int Width => width;
         public int Height => height;
 
+        #region Initialization
         public void Initialize(int gridWidth, int gridHeight)
         {
             width = gridWidth;
             height = gridHeight;
 
             tileStates = new TileState[width, height];
-            entities = new Dictionary<Vector2Int, object>();
+            entities = new Dictionary<Vector2Int, List<object>>();
 
-            // Initialize all tiles as empty
             for (int x = 0; x < width; x++)
-            {
                 for (int y = 0; y < height; y++)
-                {
                     tileStates[x, y] = TileState.Empty;
-                }
-            }
         }
+        #endregion
 
         #region Bounds & Adjacency
         public bool IsInBounds(Vector2Int pos)
@@ -58,7 +54,7 @@ namespace Egglers
 
         public List<Vector2Int> GetNeighbors(Vector2Int pos, bool includeDiagonal = false)
         {
-            List<Vector2Int> neighbors = new List<Vector2Int>();
+            List<Vector2Int> neighbors = new();
 
             Vector2Int[] orthogonal = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
             foreach (var dir in orthogonal)
@@ -92,66 +88,110 @@ namespace Egglers
             return tileStates[pos.x, pos.y];
         }
 
-        public void SetTileState(Vector2Int pos, TileState state)
+        private void UpdateTileState(Vector2Int pos)
         {
-            if (!IsInBounds(pos))
+            if (!entities.TryGetValue(pos, out var list) || list.Count == 0)
             {
-                Debug.LogWarning($"Cannot set tile state at {pos}, out of bounds!");
+                tileStates[pos.x, pos.y] = TileState.Empty;
                 return;
             }
-            tileStates[pos.x, pos.y] = state;
+
+            // Priority for display: Plant > Pollution > PollutionSource
+            tileStates[pos.x, pos.y] = list[0] switch
+            {
+                PlantBit => TileState.Plant,
+                PollutionTile => TileState.Pollution,
+                PollutionSource => TileState.PollutionSource,
+                _ => TileState.Empty
+            };
         }
         #endregion
 
         #region Entity Management
-        public void SetEntity(Vector2Int pos, object entity)
+
+        /// <summary>
+        /// Add or replace an entity on the grid using the entity's own position.
+        /// </summary>
+        public void SetEntity<T>(T entity) where T : class
         {
-            if (!IsInBounds(pos))
+            if (entity == null) return;
+            Vector2Int pos = GetPositionFromEntity(entity);
+            if (!IsInBounds(pos)) return;
+
+            if (!entities.TryGetValue(pos, out var list))
             {
-                Debug.LogWarning($"Cannot set entity at {pos}, out of bounds!");
-                return;
+                list = new List<object>();
+                entities[pos] = list;
             }
 
-            entities[pos] = entity;
+            // Remove any existing entity of the same type
+            list.RemoveAll(e => e.GetType() == typeof(T));
+            list.Add(entity);
 
-            // Automatically update tile state
-            if (entity is PlantBit)
-                SetTileState(pos, TileState.Plant);
-            else if (entity is PollutionTile)
-                SetTileState(pos, TileState.Pollution);
-            else if (entity is PollutionSource)
-                SetTileState(pos, TileState.PollutionSource);
-            else if (entity == null)
-                SetTileState(pos, TileState.Empty);
+            UpdateTileState(pos);
         }
 
+        /// <summary>
+        /// Remove an entity from the grid using the entity's own position.
+        /// </summary>
+        public void RemoveEntity<T>(T entity) where T : class
+        {
+            if (entity == null) return;
+            Vector2Int pos = GetPositionFromEntity(entity);
+            if (!IsInBounds(pos) || !entities.TryGetValue(pos, out var list)) return;
+
+            list.RemoveAll(e => e is T);
+            if (list.Count == 0) entities.Remove(pos);
+            UpdateTileState(pos);
+
+        }
+
+        /// <summary>
+        /// Get an entity of type T at the entity's position.
+        /// </summary>
+        public T GetEntity<T>(T entity) where T : class
+        {
+            if (entity == null) return null;
+            Vector2Int pos = GetPositionFromEntity(entity);
+            return GetEntity<T>(pos);
+        }
+
+        /// <summary>
+        /// Get an entity of type T at a given position.
+        /// </summary>
         public T GetEntity<T>(Vector2Int pos) where T : class
         {
             if (!IsInBounds(pos)) return null;
+            if (!entities.TryGetValue(pos, out var list)) return null;
 
-            if (entities.TryGetValue(pos, out object entity))
-            {
-                return entity as T;
-            }
+            foreach (var e in list)
+                if (e is T t) return t;
+
             return null;
         }
 
-        public void RemoveEntity(Vector2Int pos)
+        private Vector2Int GetPositionFromEntity(object entity)
         {
-            if (entities.ContainsKey(pos))
+            return entity switch
             {
-                entities.Remove(pos);
-                SetTileState(pos, TileState.Empty);
-            }
+                PlantBit p => p.position,
+                PollutionTile t => t.position,
+                PollutionSource s => s.position,
+                _ => throw new ArgumentException("Unknown entity type")
+            };
         }
 
-        public bool HasEntity(Vector2Int pos)
+        public bool HasEntity<T>(T entity) where T : class
         {
-            return entities.ContainsKey(pos);
+            if (entity == null) return false;
+            Vector2Int pos = GetPositionFromEntity(entity);
+            return entities.TryGetValue(pos, out var list) && list.Exists(e => e is T);
         }
+
         #endregion
 
         #region Convenience Methods
+
         /// <summary>
         /// Returns a PollutionTile at a position, creating one if necessary.
         /// </summary>
@@ -166,12 +206,13 @@ namespace Egglers
                 pollutionStrength = strength,
                 pollutionResistance = resistance
             };
-            SetEntity(pos, tile);
+
+            SetEntity(tile);
             return tile;
         }
 
         /// <summary>
-        /// Returns a PlantBit at a position, if any.
+        /// Get a PlantBit at a position if any.
         /// </summary>
         public PlantBit GetPlantBit(Vector2Int pos)
         {
@@ -179,12 +220,13 @@ namespace Egglers
         }
 
         /// <summary>
-        /// Returns a PollutionSource at a position, if any.
+        /// Get a PollutionSource at a position if any.
         /// </summary>
         public PollutionSource GetPollutionSource(Vector2Int pos)
         {
             return GetEntity<PollutionSource>(pos);
         }
+
         #endregion
     }
 }

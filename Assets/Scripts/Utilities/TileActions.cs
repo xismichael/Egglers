@@ -10,7 +10,8 @@ namespace Egglers
         Plant3,
         Billboard,
         SpawnPollution,
-        PlaceHeart
+        PlaceHeart,
+        Debug
     }
     public class TileActions : MonoBehaviour
     {

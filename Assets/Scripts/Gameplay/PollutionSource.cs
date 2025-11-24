@@ -165,8 +165,20 @@ namespace Egglers
         /// </summary>
         public void TakeDamage(float damage)
         {
+            if (damage <= 0f) return;
+
+            // Deduct HP
             currentHp -= damage;
-            if (currentHp < 0) currentHp = 0;
+            if (currentHp < 0f) currentHp = 0f;
+
+            Debug.Log($"[PollutionSource] Took {damage} damage at {position}. Current HP: {currentHp}/{maxHp}");
+
+            // If destroyed, properly remove it
+            if (ShouldBeDestroyed())
+            {
+                Debug.Log($"[PollutionSource] Destroyed at {position}");
+                PollutionManager.Instance.RemovePollutionAt(position); // <--- important
+            }
         }
 
         /// <summary>

@@ -70,8 +70,8 @@ namespace Egglers
                     isFrozen = false
                 };
 
-                gameGrid.SetEntity(pos, tile);
-                gameGrid.SetTileState(pos, TileState.Pollution);
+                gameGrid.SetEntity(tile);
+                // gameGrid.SetTileState(pos, TileState.Pollution);
                 pollutedTiles[pos] = tile;
             }
 
@@ -106,8 +106,7 @@ namespace Egglers
         {
             var source = new PollutionSource(pos, emissionRate, emissionRate, emissionRate * 0.5f, pulseRate, dormantDuration, hp);
 
-            gameGrid.SetEntity(pos, source);
-            gameGrid.SetTileState(pos, TileState.PollutionSource);
+            gameGrid.SetEntity(source);
 
             pollutionSources.Add(source);
             activeSources.Add(source);
@@ -132,29 +131,42 @@ namespace Egglers
         /// </summary>
         public void RemovePollutionAt(Vector2Int pos)
         {
-            var entity = gameGrid.GetEntity<object>(pos);
-            if (entity == null) return;
-
-            if (entity is PollutionTile tile)
+            // Remove PollutionTile if it exists
+            PollutionTile tile = gameGrid.GetEntity<PollutionTile>(pos);
+            if (tile != null)
             {
+                // Disconnect from connected sources
                 foreach (var source in tile.connectedSources)
+                {
                     source.connectedTiles.Remove(tile);
-
+                }
                 tile.connectedSources.Clear();
+
                 pollutedTiles.Remove(pos);
+
+                // Remove from grid by type
+                gameGrid.RemoveEntity(tile);
             }
-            else if (entity is PollutionSource source)
+
+            // Remove PollutionSource if it exists
+            PollutionSource sourceEntity = gameGrid.GetEntity<PollutionSource>(pos);
+            if (sourceEntity != null)
             {
-                foreach (var connectedTile in source.connectedTiles)
-                    connectedTile.connectedSources.Remove(source);
+                // Disconnect from connected tiles
+                foreach (var connectedTile in sourceEntity.connectedTiles)
+                {
+                    connectedTile.connectedSources.Remove(sourceEntity);
+                }
+                sourceEntity.connectedTiles.Clear();
 
-                source.connectedTiles.Clear();
-                pollutionSources.Remove(source);
-                activeSources.Remove(source);
+                pollutionSources.Remove(sourceEntity);
+                activeSources.Remove(sourceEntity);
+
+                // Remove from grid by type
+                gameGrid.RemoveEntity(sourceEntity);
             }
 
-            gameGrid.RemoveEntity(pos);
-            gameGrid.SetTileState(pos, TileState.Empty);
+            // Notify the system
             GridEvents.PollutionUpdated(pos);
         }
 
@@ -181,8 +193,8 @@ namespace Egglers
             else
             {
                 tile.isFrozen = false;
-                GridEvents.PollutionUpdated(pos);
             }
+            GridEvents.PollutionUpdated(pos);
         }
 
         /// <summary>

@@ -101,9 +101,10 @@ namespace Egglers
             }
 
             // Example: enable plant1 for heart, plant2 for normal, plant3 for special
-            if (bit.isHeart) SetActivePlantByIndex(0);
-            else if (bit.children.Count == 0) SetActivePlantByIndex(1);
-            else SetActivePlantByIndex(2);
+            if (bit.isHeart) SetActivePlantByIndex(2);
+            else if (bit.phase == PlantBitPhase.Grown) SetActivePlantByIndex(1);
+            else if (bit.phase == PlantBitPhase.Bud) SetActivePlantByIndex(0);
+            else SetActivePlantByIndex(-1);
         }
 
         #endregion

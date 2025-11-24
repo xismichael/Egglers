@@ -54,6 +54,8 @@ namespace Egglers
         public PlantBit(Vector2Int pos, PlantBitData newData, PlantBitManager manager,
             bool heart = false, int startLeaf = 0, int startRoot = 0, int startFruit = 0, int startMaxComponent = 0)
         {
+            Debug.Log($"[PlantBit] Created heart={heart} at {pos}");
+
             position = pos;
             data = newData;
             plantManager = manager;
@@ -80,12 +82,15 @@ namespace Egglers
             UpdateStats();
 
             // Register self in the grid
-            plantManager.gameGrid.SetEntity(position, this);
-            plantManager.gameGrid.SetTileState(position, TileState.Plant);
+            plantManager.gameGrid.SetEntity(this);
+            // plantManager.gameGrid.SetTileState(position, TileState.Plant);
+            Debug.Log($"[PlantBit] Registered to grid at {position}");
         }
 
         public PlantBit(Vector2Int pos, PlantBitData newData, PlantBit parentBit)
         {
+            Debug.Log($"[PlantBit] Created child at {pos} (parent: {parentBit.position})");
+
             position = pos;
             data = newData;
             plantManager = parentBit.plantManager;
@@ -114,8 +119,9 @@ namespace Egglers
             UpdateStats();
 
             // Register self in the grid
-            plantManager.gameGrid.SetEntity(position, this);
-            plantManager.gameGrid.SetTileState(position, TileState.Plant);
+            plantManager.gameGrid.SetEntity(this);
+            // plantManager.gameGrid.SetTileState(position, TileState.Plant);
+            Debug.Log($"[PlantBit] Registered child to grid at {position}");
         }
 
         private int CalculateMaxComponentCount()
@@ -149,23 +155,32 @@ namespace Egglers
 
         public void TransitionToGrownPhase()
         {
+            Debug.Log($"[PlantBit] TransitionToGrownPhase at {position}");
+
             phase = PlantBitPhase.Grown;
             UpdateStats();
             plantManager.AddMaxEnergy(energyStorage);
 
             AttemptAutoSprout();
+
+            GridEvents.PlantUpdated(position);
         }
 
         private void AttemptAutoSprout()
         {
-            // Use the new GridSystem's neighbors
+            Debug.Log($"[PlantBit] AttemptAutoSprout at {position}");
+
             List<Vector2Int> neighbors = plantManager.gameGrid.GetNeighbors(position);
             foreach (Vector2Int neighborPos in neighbors)
             {
-                if (plantManager.gameGrid.GetEntity<PlantBit>(neighborPos) == null &&
-                    plantManager.gameGrid.GetTileState(neighborPos) == TileState.Empty &&
-                    plantManager.RemoveEnergy(sproutCost))
+                // Allow sprouting as long as no PlantBit is already present
+                bool canSprout = plantManager.gameGrid.GetEntity<PlantBit>(neighborPos) == null;
+
+                Debug.Log($"[PlantBit] Checking sprout spot {neighborPos} | canSprout={canSprout}");
+
+                if (canSprout && plantManager.RemoveEnergy(sproutCost))
                 {
+                    Debug.Log($"[PlantBit] Sprouting at {neighborPos} (cost: {sproutCost})");
                     plantManager.CreateSprout(this, neighborPos);
                 }
             }
@@ -175,59 +190,98 @@ namespace Egglers
         {
             if (phase == PlantBitPhase.Bud)
             {
+                // Debug.Log($"[PlantBit] TickUpdate BUD at {position} | progress: {growthProgress}/{data.fullGrowthTicks}");
+
                 if (plantManager.RemoveEnergy(data.tickGrowthCost))
                 {
                     growthProgress++;
                     if (growthProgress >= data.fullGrowthTicks)
                     {
+                        Debug.Log($"[PlantBit] Bud fully grown! Transitioning at {position}");
                         TransitionToGrownPhase();
                     }
                 }
             }
             else if (phase == PlantBitPhase.Grown)
             {
+                // Debug.Log($"[PlantBit] TickUpdate GROWN at {position}");
                 ExtractEnergy();
 
                 if (graftingCooldown > 0)
                 {
                     graftingCooldown--;
                     if (graftingCooldown < 0) graftingCooldown = 0;
+                    Debug.Log($"[PlantBit] GraftingCooldown at {position}: {graftingCooldown}");
                 }
             }
         }
 
         public void ExtractEnergy()
         {
-            PollutionTile pollutionTile = plantManager.gameGrid.GetEntity<PollutionTile>(position);
-            if (pollutionTile == null) return;
+            GridSystem grid = plantManager.gameGrid;
 
-            float totalPollution = pollutionTile.GetTotalPollution();
-            if (totalPollution <= 0) return;
+            // Check for PollutionTile
+            PollutionTile pollutionTile = grid.GetEntity<PollutionTile>(position);
+            float totalPollution = 0f;
 
+            if (pollutionTile != null)
+                totalPollution += pollutionTile.GetTotalPollution();
+
+            // Check for PollutionSource
+            PollutionSource pollutionSource = grid.GetEntity<PollutionSource>(position);
+            if (pollutionSource != null)
+                totalPollution += pollutionSource.GetTotalPollution();
+
+            if (totalPollution <= 0f)
+            {
+                // Debug.Log($"[PlantBit] Pollution already depleted at {position}");
+                return;
+            }
+
+            // Determine energy to extract
             float energyGain = Mathf.Min(extractionRate, totalPollution);
-            pollutionTile.TakeDamage(energyGain);
+            Debug.Log($"[PlantBit] Extracting {energyGain} energy at {position} (total pollution: {totalPollution})");
 
+            // Apply damage proportionally
+            if (pollutionTile != null)
+                pollutionTile.TakeDamage(energyGain);
+
+            if (pollutionSource != null)
+                pollutionSource.TakeDamage(energyGain);
+
+            // Give energy to plant manager
             plantManager.AddEnergy(energyGain);
         }
 
-
         public void Kill()
         {
+            Debug.Log($"[PlantBit] KILL at {position}");
+
+            // Remove energy contribution
             plantManager.RemoveMaxEnergy(energyStorage);
+
+            // Detach from parent
             parent?.children.Remove(this);
 
+            // Recursively kill children
             foreach (PlantBit child in new List<PlantBit>(children))
             {
+                Debug.Log($"[PlantBit] Killing child {child.position}");
                 plantManager.KillPlantBit(child);
             }
 
-            // Remove self from grid
-            plantManager.gameGrid.RemoveEntity(position);
-            plantManager.gameGrid.SetTileState(position, TileState.Empty);
+            children.Clear();
+
+            // Remove self from grid using type-safe removal
+            plantManager.gameGrid.RemoveEntity<PlantBit>(this);
+
+            Debug.Log($"[PlantBit] Removed from grid at {position}");
         }
 
         public void RemoveGraft(int leaf, int root, int fruit)
         {
+            Debug.Log($"[PlantBit] RemoveGraft at {position} | L:{leaf} R:{root} F:{fruit}");
+
             if (graftingCooldown > 0) return;
 
             if (leaf > graftedLeafCount || root > graftedRootCount || fruit > graftedFruitCount) return;
@@ -247,6 +301,8 @@ namespace Egglers
 
         public void ApplyGraft(GraftBuffer graft)
         {
+            Debug.Log($"[PlantBit] ApplyGraft at {position} | Graft: L{graft.leafCount} R{graft.rootCount} F{graft.fruitCount}");
+
             if (graftingCooldown > 0) return;
 
             if (TotalComponents + graft.TotalComponents > maxComponentCount) return;

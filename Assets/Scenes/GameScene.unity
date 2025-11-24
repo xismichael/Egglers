@@ -2952,13 +2952,13 @@ MonoBehaviour:
   heartStartLeaf: 3
   heartStartRoot: 3
   heartStartFruit: 3
-  plantTickRate: 0.5
+  plantTickRate: 1
   sourcesSetup:
   - position: {x: 3, y: 3}
     pollutionType: 0
     tier: 0
-    hp: 2
-    emissionRate: 3
+    hp: 25
+    emissionRate: 8
     tickInterval: 1
     dormantDuration: 1
 --- !u!1 &519588064
@@ -3314,7 +3314,6 @@ GameObject:
   m_Component:
   - component: {fileID: 595526087}
   - component: {fileID: 595526088}
-  - component: {fileID: 595526089}
   m_Layer: 0
   m_Name: PlantManager
   m_TagString: Untagged
@@ -3355,7 +3354,7 @@ MonoBehaviour:
   gridWidth: 10
   gridHeight: 10
   tickDurationSeconds: 1
-  startingEnergy: 10
+  startingEnergy: 100
   startingMaxEnergy: 100
   heartStartingLeaf: 3
   heartStartingRoot: 3
@@ -3369,37 +3368,6 @@ MonoBehaviour:
     fruitCount: 0
     hasContent: 0
   pollutionManager: {fileID: 1602547428}
---- !u!114 &595526089
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 595526085}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 405add335ac0a4267abe415f9a2b4294, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlantPollutionGame.PlantManager
-  pollutionManager: {fileID: 1602547428}
-  currentResources: 0
-  maxResourceStorage: 0
-  graftBuffer:
-    leafCount: 0
-    rootCount: 0
-    fruitCount: 0
-    hasContent: 0
-  leafMultiplier: 1
-  rootMultiplier: 1
-  fruitMultiplier: 1
-  baseSproutCost: 10
-  baseGraftCost: 5
-  componentCostScaling: 0.2
-  graftedCostScaling: 0.3
-  graftCostScaling: 0.25
-  removalCostPerComponent: 1
-  graftCooldownDuration: 5
-  plantTickRate: 0.5
 --- !u!4 &599351408 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8014701665589887379, guid: 786c2f07d6b23634087189c216ba193c, type: 3}
@@ -7698,7 +7666,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b0cd33a4b41734a9a9455cb709982cd3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlantPollutionGame.PollutionManager
-  plantManager: {fileID: 0}
+  plantManager: {fileID: 595526088}
 --- !u!1001 &1604961137
 PrefabInstance:
   m_ObjectHideFlags: 0
