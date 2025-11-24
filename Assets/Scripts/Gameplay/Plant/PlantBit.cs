@@ -240,16 +240,22 @@ namespace Egglers
 
         public void RemoveGraft(int leaf, int root, int fruit)
         {
+            if (phase == PlantBitPhase.Bud)
+            {
+                Debug.LogWarning("Cannot remove graft, plant is still a bud");
+                return;
+            }
+            
             if (graftingCooldown > 0)
             {
-                Debug.LogWarning("Plant is on grafting cooldown");
+                Debug.LogWarning("Cannot remove graft, plant is on grafting cooldown");
                 return;
             }
 
             // Check if plant has enough grafts to remove
-            if (leaf > graftedLeafCount || root > graftedRootCount || fruit > graftedFruitCount)
+            if (leaf > (leafCount + graftedLeafCount) || root > (rootCount + graftedRootCount) || fruit > (fruitCount + graftedFruitCount))
             {
-                Debug.LogWarning("Trying to remove more grafts than available");
+                Debug.LogWarning("Cannot remove graft, trying to remove more grafts than available");
                 return;
             }
 
@@ -258,7 +264,7 @@ namespace Egglers
             float removalCost = totalRemoved * data.removalCostPerComponent;
             if (!plantManager.RemoveEnergy(removalCost))
             {
-                Debug.LogWarning("Not enough resources to remove grafts");
+                Debug.LogWarning("Cannot remove graft, not enough resources to remove components");
                 return;
             }
 
@@ -276,9 +282,15 @@ namespace Egglers
 
         public void ApplyGraft(GraftBuffer graft)
         {
+            if (phase == PlantBitPhase.Bud)
+            {
+                Debug.LogWarning("Cannot apply graft, plant is still a bud");
+                return;
+            }
+
             if (graftingCooldown > 0)
             {
-                Debug.LogWarning("Plant is on grafting cooldown");
+                Debug.LogWarning("Cannot apply graft, plant is on grafting cooldown");
                 return;
             }
 
@@ -286,7 +298,7 @@ namespace Egglers
             int newTotal = TotalComponents + graft.TotalComponents;
             if (newTotal > maxComponentCount)
             {
-                Debug.LogWarning("Would exceed plant's max component capacity");
+                Debug.LogWarning("Cannot apply graft, would exceed plant's max component capacity");
                 return;
             }
 
@@ -294,7 +306,7 @@ namespace Egglers
             float cost = data.baseGraftCost * (1 + TotalComponents * data.graftCostScaling);
             if (!plantManager.RemoveEnergy(cost))
             {
-                Debug.LogWarning("Not enough resources to apply grafts");
+                Debug.LogWarning("Cannot apply graft, not enough resources");
                 return;
             }
 
