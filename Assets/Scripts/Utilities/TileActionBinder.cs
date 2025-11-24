@@ -39,7 +39,7 @@ namespace Egglers
                 TileActionType.Plant2 => tile => SetActivePlant(tile, 1),
                 TileActionType.Plant3 => tile => SetActivePlant(tile, 2),
                 TileActionType.Billboard => tile => SetBillboard(tile, "Hello World!"),
-                TileActionType.SpawnPollution => SpawnPollution,
+                // TileActionType.SpawnPollution => SpawnPollution,
                 TileActionType.PlaceHeart => PlaceHeart,
                 _ => null
             };
@@ -64,20 +64,28 @@ namespace Egglers
             visual.SetBillboardText(text);
         }
 
-        private void SpawnPollution(GameObject tile)
-        {
-            if (pollutionManager == null)
-            {
-                Debug.LogWarning("No PollutionManager assigned.");
-                return;
-            }
+        // private void SpawnPollution(GameObject tile)
+        // {
+        //     if (pollutionManager == null)
+        //     {
+        //         Debug.LogWarning("No PollutionManager assigned.");
+        //         return;
+        //     }
 
-            GridVisualTile visual = tile.GetComponent<GridVisualTile>();
-            if (visual == null) return;
+        //     GridVisualTile visual = tile.GetComponent<GridVisualTile>();
+        //     if (visual == null || plantBitManager == null) return;
 
-            Vector2Int pos = visual.coords;
-            pollutionManager.GetOrCreateTile(pos); // example placeholder
-        }
+        //     Vector2Int pos = visual.coords;
+
+        //     // Use the unified grid to set a PollutionTile
+        //     if (!plantBitManager.gameGrid.HasEntity(pos))
+        //     {
+        //         PollutionTile newTile = new PollutionTile(pos);
+        //         plantBitManager.gameGrid.SetEntity(pos, newTile);
+        //         plantBitManager.gameGrid.SetTileState(pos, TileState.Pollution);
+        //         GridEvents.PollutionUpdated(pos);
+        //     }
+        // }
 
         private void PlaceHeart(GameObject tile)
         {

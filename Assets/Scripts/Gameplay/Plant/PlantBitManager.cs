@@ -1,6 +1,4 @@
-using System.Collections;
-using System.Data;
-using Unity.VisualScripting;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Egglers
@@ -63,8 +61,7 @@ namespace Egglers
         [SerializeField] private int heartStartingFruit = 3;
         [SerializeField] private int heartStartingMaxComponent = 5;
 
-        // Grid reference
-        public GameGrid gameGrid;
+        public GridSystem gameGrid;
 
         public PlantBit heart;
 
@@ -72,30 +69,37 @@ namespace Egglers
         public float currentEnergy;
         public float maxEnergy;
 
-        // public PollutionManager pollutionManager;
-
         // Grafting
         public GraftBuffer graftBuffer;
 
-        private WaitForSeconds waitForTick;
+        public PollutionManager pollutionManager;
 
-        private void Awake()
+        /// <summary>
+        /// Initializes the manager with a shared unified grid.
+        /// </summary>
+        public void Initialize(GridSystem sharedGrid)
         {
+            gameGrid = sharedGrid;
             graftBuffer = new GraftBuffer(0, 0, 0, false);
-            gameGrid = new GameGrid(gridWidth, gridHeight);
-            // waitForTick = new WaitForSeconds(tickDurationSeconds);
         }
 
-        private void Start()
+        public void InitializeHeart(Vector2Int pos)
         {
-            InitializeHeart();
-            maxEnergy = startingMaxEnergy;
-            currentEnergy = startingEnergy;
-            // StartCoroutine(UpdateTickRoutine());
+            heart = new PlantBit(pos, heartBitData, this, true,
+                heartStartingLeaf, heartStartingRoot, heartStartingFruit, heartStartingMaxComponent);
+
+            gameGrid.SetEntity(pos, heart); // Set in unified grid
+
+            maxEnergy = 100f;
+            currentEnergy = 10f;
+
+            GridEvents.PlantUpdated(pos);
         }
 
         public void UpdatePlants(PlantBit plantBit)
         {
+            if (plantBit == null) return;
+
             plantBit.TickUpdate();
 
             foreach (PlantBit child in plantBit.children)
@@ -104,43 +108,26 @@ namespace Egglers
             }
         }
 
-        // private IEnumerator UpdateTickRoutine()
-        // {
-        //     while (true)
-        //     {
-        //         UpdatePlants(heart);
-        //         yield return waitForTick;
-        //     }
-        // }
-
-        private void OnDestroy()
-        {
-            StopAllCoroutines();
-        }
-
-        public void InitializeHeart()
-        {
-            heart = new PlantBit(startingHeartPos, heartBitData, this, true, heartStartingLeaf, heartStartingRoot, heartStartingFruit, heartStartingMaxComponent);
-            gameGrid.GetTileAtPosition(startingHeartPos).SetPlantBit(heart);
-        }
-
         public void CreateSprout(PlantBit parent, Vector2Int targetPos)
         {
-            PlantBit child = new(targetPos, plantBitData, parent);
-            gameGrid.GetTileAtPosition(targetPos).SetPlantBit(child);
+            if (parent == null) return;
+
+            PlantBit child = new PlantBit(targetPos, plantBitData, parent);
+            gameGrid.SetEntity(targetPos, child);
 
             GridEvents.PlantUpdated(targetPos);
         }
 
         public void KillPlantBit(PlantBit plantBit)
         {
+            if (plantBit == null) return;
+
             if (plantBit == heart)
             {
-                Debug.Log("GAME OVER HEART IS DEAD");
+                Debug.Log("GAME OVER: HEART IS DEAD");
             }
 
-            // Remove from grid
-            gameGrid.GetTileAtPosition(plantBit.position).SetPlantBit(null);
+            gameGrid.RemoveEntity(plantBit.position);
             plantBit.Kill();
 
             GridEvents.PlantUpdated(plantBit.position);
@@ -169,66 +156,27 @@ namespace Egglers
             return true;
         }
 
-        public void RemoveGraftAtPosition(Vector2Int pos, int leaf, int root, int fruit)
-        {
-            GameTile tile = gameGrid.GetTileAtPosition(pos);
-            PlantBit plantBit = tile.GetPlantBit();
-
-            if (plantBit == null) return;
-
-            plantBit.RemoveGraft(leaf, root, fruit);
-        }
-
         public void ApplyGraftAtPosition(Vector2Int pos)
         {
-            GameTile tile = gameGrid.GetTileAtPosition(pos);
-            PlantBit plantBit = tile.GetPlantBit();
-            if (plantBit == null) return;
-
-            if (!graftBuffer.hasContent)
-            {
-                Debug.LogWarning("No grafts in buffer to apply");
-                return;
-            }
+            PlantBit plantBit = gameGrid.GetEntity<PlantBit>(pos);
+            if (plantBit == null || !graftBuffer.hasContent) return;
 
             plantBit.ApplyGraft(graftBuffer);
             GridEvents.PlantUpdated(pos);
         }
 
-        public void UpdateGraftBuffer(int leaf, int root, int fruit)
+        public void RemoveGraftAtPosition(Vector2Int pos, int leaf, int root, int fruit)
         {
-            // Warn if overwriting buffer
-            if (graftBuffer.hasContent)
-            {
-                Debug.Log("Previous grafts lost!");
-            }
+            PlantBit plantBit = gameGrid.GetEntity<PlantBit>(pos);
+            if (plantBit == null) return;
 
-            // Update buffer
-            graftBuffer.Update(leaf, root, fruit);
-        }
-
-        public void ClearGraftBuffer()
-        {
-            graftBuffer.Clear();
+            plantBit.RemoveGraft(leaf, root, fruit);
+            GridEvents.PlantUpdated(pos);
         }
 
         public float GetPollutionAtTile(Vector2Int pos)
         {
-            return gameGrid.GetTileAtPosition(pos).pollution;
-        }
-
-        public void RemovePollutionAtTile(Vector2Int pos, float amount)
-        {
-            Debug.Log($"Removing {amount} from pollution on tile {pos}");
-        }
-
-        public float GetAttackDamageAtTile(Vector2Int pos)
-        {
-            GameTile tile = gameGrid.GetTileAtPosition(pos);
-            PlantBit plantBit = tile.GetPlantBit();
-            if (plantBit == null) return 0.0f;
-
-            return plantBit.attackDamage;
+            return pollutionManager?.GetPollutionLevelAt(pos) ?? 0f;
         }
     }
 }

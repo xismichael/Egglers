@@ -1,14 +1,23 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace Egglers
 {
+    /// <summary>
+    /// Unified grid system for plants, pollution tiles, and sources.
+    /// Replaces both old GameGrid and GridSystem.
+    /// </summary>
     public class GridSystem
     {
         private int width;
         private int height;
-        private TileState[,] grid;
-        private Dictionary<Vector2Int, object> entities; // Stores Plant, PollutionTile, or PollutionSource
+
+        // Tile state for quick reference
+        private TileState[,] tileStates;
+
+        // Entities stored by position
+        private Dictionary<Vector2Int, object> entities;
 
         public int Width => width;
         public int Height => height;
@@ -17,24 +26,62 @@ namespace Egglers
         {
             width = gridWidth;
             height = gridHeight;
-            grid = new TileState[width, height];
+
+            tileStates = new TileState[width, height];
             entities = new Dictionary<Vector2Int, object>();
 
-            // Initialize all tiles as Empty
+            // Initialize all tiles as empty
             for (int x = 0; x < width; x++)
             {
                 for (int y = 0; y < height; y++)
                 {
-                    grid[x, y] = TileState.Empty;
+                    tileStates[x, y] = TileState.Empty;
                 }
             }
         }
 
+        #region Bounds & Adjacency
         public bool IsInBounds(Vector2Int pos)
         {
             return pos.x >= 0 && pos.x < width && pos.y >= 0 && pos.y < height;
         }
 
+        public int GetDistance(Vector2Int from, Vector2Int to)
+        {
+            return Mathf.Abs(from.x - to.x) + Mathf.Abs(from.y - to.y);
+        }
+
+        public bool AreAdjacent(Vector2Int pos1, Vector2Int pos2)
+        {
+            return GetDistance(pos1, pos2) == 1;
+        }
+
+        public List<Vector2Int> GetNeighbors(Vector2Int pos, bool includeDiagonal = false)
+        {
+            List<Vector2Int> neighbors = new List<Vector2Int>();
+
+            Vector2Int[] orthogonal = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+            foreach (var dir in orthogonal)
+            {
+                Vector2Int n = pos + dir;
+                if (IsInBounds(n)) neighbors.Add(n);
+            }
+
+            if (includeDiagonal)
+            {
+                Vector2Int[] diagonal = { new Vector2Int(1, 1), new Vector2Int(1, -1), new Vector2Int(-1, 1), new Vector2Int(-1, -1) };
+                foreach (var dir in diagonal)
+                {
+                    Vector2Int n = pos + dir;
+                    if (IsInBounds(n)) neighbors.Add(n);
+                }
+            }
+
+            return neighbors;
+        }
+        #endregion
+
+        #region TileState
         public TileState GetTileState(Vector2Int pos)
         {
             if (!IsInBounds(pos))
@@ -42,7 +89,7 @@ namespace Egglers
                 Debug.LogWarning($"Position {pos} is out of bounds!");
                 return TileState.Empty;
             }
-            return grid[pos.x, pos.y];
+            return tileStates[pos.x, pos.y];
         }
 
         public void SetTileState(Vector2Int pos, TileState state)
@@ -52,9 +99,11 @@ namespace Egglers
                 Debug.LogWarning($"Cannot set tile state at {pos}, out of bounds!");
                 return;
             }
-            grid[pos.x, pos.y] = state;
+            tileStates[pos.x, pos.y] = state;
         }
+        #endregion
 
+        #region Entity Management
         public void SetEntity(Vector2Int pos, object entity)
         {
             if (!IsInBounds(pos))
@@ -62,15 +111,23 @@ namespace Egglers
                 Debug.LogWarning($"Cannot set entity at {pos}, out of bounds!");
                 return;
             }
+
             entities[pos] = entity;
+
+            // Automatically update tile state
+            if (entity is PlantBit)
+                SetTileState(pos, TileState.Plant);
+            else if (entity is PollutionTile)
+                SetTileState(pos, TileState.Pollution);
+            else if (entity is PollutionSource)
+                SetTileState(pos, TileState.PollutionSource);
+            else if (entity == null)
+                SetTileState(pos, TileState.Empty);
         }
 
         public T GetEntity<T>(Vector2Int pos) where T : class
         {
-            if (!IsInBounds(pos))
-            {
-                return null;
-            }
+            if (!IsInBounds(pos)) return null;
 
             if (entities.TryGetValue(pos, out object entity))
             {
@@ -84,6 +141,7 @@ namespace Egglers
             if (entities.ContainsKey(pos))
             {
                 entities.Remove(pos);
+                SetTileState(pos, TileState.Empty);
             }
         }
 
@@ -91,65 +149,42 @@ namespace Egglers
         {
             return entities.ContainsKey(pos);
         }
+        #endregion
 
-        // Get 4-directional neighbors (orthogonal)
-        public List<Vector2Int> GetNeighbors(Vector2Int pos, bool includeDiagonal = false)
+        #region Convenience Methods
+        /// <summary>
+        /// Returns a PollutionTile at a position, creating one if necessary.
+        /// </summary>
+        public PollutionTile GetOrCreatePollutionTile(Vector2Int pos, float spreadRate = 10f, float strength = 10f, float resistance = 5f)
         {
-            List<Vector2Int> neighbors = new List<Vector2Int>();
+            PollutionTile tile = GetEntity<PollutionTile>(pos);
+            if (tile != null) return tile;
 
-            // 4-directional (up, down, left, right)
-            Vector2Int[] orthogonalDirections = new Vector2Int[]
+            tile = new PollutionTile(pos)
             {
-                Vector2Int.up,      // (0, 1)
-                Vector2Int.down,    // (0, -1)
-                Vector2Int.left,    // (-1, 0)
-                Vector2Int.right    // (1, 0)
+                pollutionSpreadRate = spreadRate,
+                pollutionStrength = strength,
+                pollutionResistance = resistance
             };
-
-            foreach (var dir in orthogonalDirections)
-            {
-                Vector2Int neighbor = pos + dir;
-                if (IsInBounds(neighbor))
-                {
-                    neighbors.Add(neighbor);
-                }
-            }
-
-            // Add diagonal neighbors if requested
-            if (includeDiagonal)
-            {
-                Vector2Int[] diagonalDirections = new Vector2Int[]
-                {
-                    new Vector2Int(1, 1),   // Up-right
-                    new Vector2Int(1, -1),  // Down-right
-                    new Vector2Int(-1, 1),  // Up-left
-                    new Vector2Int(-1, -1)  // Down-left
-                };
-
-                foreach (var dir in diagonalDirections)
-                {
-                    Vector2Int neighbor = pos + dir;
-                    if (IsInBounds(neighbor))
-                    {
-                        neighbors.Add(neighbor);
-                    }
-                }
-            }
-
-            return neighbors;
+            SetEntity(pos, tile);
+            return tile;
         }
 
-        // Manhattan distance between two positions
-        public int GetDistance(Vector2Int from, Vector2Int to)
+        /// <summary>
+        /// Returns a PlantBit at a position, if any.
+        /// </summary>
+        public PlantBit GetPlantBit(Vector2Int pos)
         {
-            return Mathf.Abs(from.x - to.x) + Mathf.Abs(from.y - to.y);
+            return GetEntity<PlantBit>(pos);
         }
 
-        // Check if two positions are adjacent (4-directional)
-        public bool AreAdjacent(Vector2Int pos1, Vector2Int pos2)
+        /// <summary>
+        /// Returns a PollutionSource at a position, if any.
+        /// </summary>
+        public PollutionSource GetPollutionSource(Vector2Int pos)
         {
-            return GetDistance(pos1, pos2) == 1;
+            return GetEntity<PollutionSource>(pos);
         }
+        #endregion
     }
 }
-

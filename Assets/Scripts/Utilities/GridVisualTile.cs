@@ -6,6 +6,7 @@ namespace Egglers
     /// <summary>
     /// Handles visual representation of a tile: plants, billboard, and pollution text.
     /// Listens to grid events and updates accordingly.
+    /// Uses the unified GridSystem for all entity access.
     /// </summary>
     public class GridVisualTile : MonoBehaviour
     {
@@ -43,7 +44,7 @@ namespace Egglers
         {
             if (pos != coords) return;
 
-            PlantBit bit = plantBitManager?.gameGrid.GetTileAtPosition(pos)?.GetPlantBit();
+            PlantBit bit = gameManager.gameGrid.GetEntity<PlantBit>(pos);
             UpdatePlantVisuals(bit);
         }
 
@@ -51,7 +52,15 @@ namespace Egglers
         {
             if (pos != coords) return;
 
-            UpdatePollutionVisuals();
+            PollutionTile tile = gameManager.gameGrid.GetEntity<PollutionTile>(coords);
+            PollutionSource source = gameManager.gameGrid.GetEntity<PollutionSource>(coords);
+
+            float level = 0f;
+            if (tile != null) level = tile.GetTotalPollution();
+            else if (source != null) level = source.GetTotalPollution();
+
+            if (tmp != null)
+                tmp.text = level.ToString("0.00");
         }
 
         #endregion
@@ -80,22 +89,21 @@ namespace Egglers
         }
 
         /// <summary>
-        /// Updates the pollution display from the manager.
-        /// </summary>
-        public void UpdatePollutionVisuals()
-        {
-            if (tmp == null || pollutionManager == null) return;
-
-            float level = pollutionManager.GetPollutionLevelAt(coords);
-            tmp.text = level.ToString("0.00");
-        }
-
-        /// <summary>
         /// Updates plant visuals (sprites, scale, etc.) if needed.
+        /// Customize to match your plant prefabs or animation logic.
         /// </summary>
         private void UpdatePlantVisuals(PlantBit bit)
         {
-            // TODO: implement custom plant visual update
+            if (bit == null)
+            {
+                SetActivePlantByIndex(-1); // disable all
+                return;
+            }
+
+            // Example: enable plant1 for heart, plant2 for normal, plant3 for special
+            if (bit.isHeart) SetActivePlantByIndex(0);
+            else if (bit.children.Count == 0) SetActivePlantByIndex(1);
+            else SetActivePlantByIndex(2);
         }
 
         #endregion

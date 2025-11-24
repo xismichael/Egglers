@@ -2944,24 +2944,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dcb05af743aa0432b83e56c197d0f415, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlantPollutionGame.GameManager
-  plantManager: {fileID: 595526089}
+  plantManager: {fileID: 595526088}
   pollutionManager: {fileID: 1602547428}
-  gridManager: {fileID: 973269523}
   gameState: 0
-  gridWidth: 20
-  gridHeight: 20
+  gridWidth: 10
+  gridHeight: 10
   heartStartLeaf: 3
   heartStartRoot: 3
   heartStartFruit: 3
   plantTickRate: 0.5
-  pollutionTickRate: 7
   sourcesSetup:
   - position: {x: 3, y: 3}
     pollutionType: 0
     tier: 0
-    hp: 15
-    emissionRate: 8
-    tickInterval: 2
+    hp: 2
+    emissionRate: 3
+    tickInterval: 1
     dormantDuration: 1
 --- !u!1 &519588064
 GameObject:
@@ -3370,6 +3368,7 @@ MonoBehaviour:
     rootCount: 0
     fruitCount: 0
     hasContent: 0
+  pollutionManager: {fileID: 1602547428}
 --- !u!114 &595526089
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7699,9 +7698,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b0cd33a4b41734a9a9455cb709982cd3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlantPollutionGame.PollutionManager
-  plantManager: {fileID: 595526089}
-  baseSpreadRate: 1
-  pollutionTickRate: 7
+  plantManager: {fileID: 0}
 --- !u!1001 &1604961137
 PrefabInstance:
   m_ObjectHideFlags: 0

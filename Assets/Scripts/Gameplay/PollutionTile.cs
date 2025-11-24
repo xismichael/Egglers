@@ -17,10 +17,10 @@ namespace Egglers
         public float pollutionSpreadRate;   // How fast pollution spreads (contributes to total pollution)
         public float pollutionStrength;     // Offensive power - determines if pollution can kill plants
         public float pollutionResistance;   // Defensive power - how hard it is for plants to extract from this tile
-        
+
         // === State Management ===
         public bool isFrozen; // When true, tile cannot spread or receive pollution (used to prevent race conditions)
-        
+
         // === Network Tracking ===
         // Tracks which sources contribute to this tile (pollution spreads from sources through connected tiles)
         public HashSet<PollutionSource> connectedSources = new HashSet<PollutionSource>();
@@ -28,10 +28,10 @@ namespace Egglers
         // === Derived Properties ===
         // Attack damage equals strength (used for combat calculations against plants)
         public float attackDamage => pollutionStrength;
-        
+
         // Total pollution level (sum of all three stats)
         public float totalPollutionLevel => pollutionSpreadRate + pollutionStrength + pollutionResistance;
-        
+
         /// <summary>
         /// Dynamically calculates pollution type based on stat ratios.
         /// Acidic: Strength >= 50% of total (aggressive, reduces plant defense)
@@ -44,7 +44,7 @@ namespace Egglers
             {
                 float totalPollution = GetTotalPollution();
                 if (totalPollution == 0) return PollutionType.Toxic;
-                
+
                 if (pollutionStrength >= totalPollution * 0.5f)
                 {
                     return PollutionType.Acidic;
@@ -130,13 +130,9 @@ namespace Egglers
         /// </summary>
         public void Spread()
         {
-            // Frozen tiles cannot spread (used for thread safety during damage application)
-            if (isFrozen)
-            {
-                return;
-            }
-            
-            // Get all 4-directional neighbors
+            if (isFrozen) return;
+
+            GridSystem grid = PollutionManager.Instance.gameGrid;
             List<Vector2Int> adjacentPositions = PollutionManager.Instance.GetAdjacentPositions(position);
 
             // Calculate spread cap (neighbors can't exceed 90% of this tile's pollution)
@@ -155,27 +151,25 @@ namespace Egglers
 
             foreach (Vector2Int neighborPos in adjacentPositions)
             {
-                // Query GridSystem for accurate tile state
-                GridSystem gridSystem = PollutionManager.Instance.gridSystem;
-                TileState tileState = gridSystem.GetTileState(neighborPos);
-                
-                // === Handle Plants and Heart ===
+                TileState tileState = grid.GetTileState(neighborPos);
+
+                // --- Plants / Heart ---
                 if (tileState == TileState.Plant || tileState == TileState.Heart)
                 {
-                    Plant plant = gridSystem.GetEntity<Plant>(neighborPos);
+                    PlantBit plant = grid.GetEntity<PlantBit>(neighborPos);
                     if (plant != null)
                     {
                         // --- Heart: Trigger loss if overwhelmed, but never kill ---
                         if (plant.isHeart)
                         {
                             float heartATD = plant.attackDamage;
-                            
+
                             // Acidic pollution reduces plant defense by 33%
                             if (tileIsAcidic)
                             {
                                 heartATD *= 0.67f;
                             }
-                            
+
                             // If pollution overwhelms the Heart (tie goes to pollution), game over
                             if (heartATD <= attackDamage)
                             {
@@ -185,44 +179,44 @@ namespace Egglers
                                     gameManager.TriggerLoss();
                                 }
                             }
-                            
+
                             // Heart can never be killed or replaced - pollution stops here
                             continue;
                         }
-                        
+
                         // --- Regular Plants: Calculate effective defense ---
                         float effectiveATD;
-                        
-                        if (plant.phase == PlantPhase.Bud)
+
+                        if (plant.phase == PlantBitPhase.Bud)
                         {
                             // Buds are protected by their parent's attack damage
-                            if (plant.parentPlant == null)
+                            if (plant.parent == null)
                             {
                                 continue; // Orphaned bud (shouldn't happen) - skip
                             }
-                            effectiveATD = plant.parentPlant.attackDamage;
+                            effectiveATD = plant.parent.attackDamage;
                         }
                         else
                         {
                             // Grown plants use their own attack damage
                             effectiveATD = plant.attackDamage;
                         }
-                        
+
                         // Acidic pollution reduces plant defense by 33%
                         if (tileIsAcidic)
                         {
                             effectiveATD *= 0.67f;
                         }
-                        
+
                         // --- Combat Resolution: Kill weak plants and spread ---
                         if (effectiveATD <= attackDamage)
                         {
                             // Pollution wins - delete the plant and all its children
-                            PollutionManager.Instance.plantManager.DeletePlant(plant, fromPollution: true);
-                            
+                            PollutionManager.Instance.plantManager.KillPlantBit(plant);
+
                             // Create new pollution tile where the plant was
                             PollutionTile newTile = PollutionManager.Instance.AddPollutionToPosition(neighborPos, spreadAmount_SpreadRate, spreadAmount_Strength, spreadAmount_Resistance);
-                            
+
                             // Propagate source connections to the new tile
                             foreach (PollutionSource source in connectedSources)
                             {
@@ -236,26 +230,26 @@ namespace Egglers
                                 }
                             }
                         }
-                        
+
                         // Plant is stronger - pollution cannot spread here
                         continue;
                     }
                 }
-                
+
                 // === Skip Pollution Sources (pollution can't spread to sources) ===
                 if (tileState == TileState.PollutionSource)
                 {
                     continue;
                 }
-                
+
                 // === Handle Empty Tiles and Existing Pollution ===
-                object neighborObject = PollutionManager.Instance.grid[neighborPos.x, neighborPos.y];
+                object neighborObject = PollutionManager.Instance.gameGrid.GetEntity<object>(neighborPos);
 
                 // --- Empty Tile: Create new pollution tile ---
                 if (neighborObject == null)
                 {
                     PollutionTile newTile = PollutionManager.Instance.AddPollutionToPosition(neighborPos, spreadAmount_SpreadRate, spreadAmount_Strength, spreadAmount_Resistance);
-                    
+
                     // Propagate all source connections to the new tile
                     foreach (PollutionSource source in connectedSources)
                     {
@@ -277,15 +271,15 @@ namespace Egglers
                     {
                         continue;
                     }
-                    
+
                     float neighborCurrent = neighborTile.GetTotalPollution();
-                    
+
                     // Only spread if neighbor is below the 90% cap
                     if (neighborCurrent < maxNeighborPollution)
                     {
                         // Calculate how much pollution can be added without exceeding cap
                         float roomLeft = maxNeighborPollution - neighborCurrent;
-                        
+
                         // If full spread would exceed cap, scale it down proportionally
                         if (totalSpreadAmount > roomLeft)
                         {
@@ -293,7 +287,7 @@ namespace Egglers
                             float clampedSpreadRate = spreadAmount_SpreadRate * scaleFactor;
                             float clampedStrength = spreadAmount_Strength * scaleFactor;
                             float clampedResistance = spreadAmount_Resistance * scaleFactor;
-                            
+
                             PollutionManager.Instance.AddPollutionToTile(neighborTile, clampedSpreadRate, clampedStrength, clampedResistance);
                         }
                         else
@@ -301,7 +295,7 @@ namespace Egglers
                             // Room for full spread amount
                             PollutionManager.Instance.AddPollutionToTile(neighborTile, spreadAmount_SpreadRate, spreadAmount_Strength, spreadAmount_Resistance);
                         }
-                        
+
                         // Merge source networks (neighbor now connects to all of this tile's sources)
                         foreach (PollutionSource source in connectedSources)
                         {

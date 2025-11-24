@@ -6,11 +6,11 @@ namespace Egglers
 {
     public class GameManager : MonoBehaviour
     {
+        public GridSystem gameGrid;
+
         [Header("Managers")]
-        public PlantManager plantManager;
+        public PlantBitManager plantManager;
         public PollutionManager pollutionManager;
-        public GridManager gridManager;
-        public GridSystem gridSystem;
 
         [Header("Game State")]
         public GameState gameState = GameState.HeartPlacement;
@@ -18,6 +18,8 @@ namespace Egglers
         [Header("Configuration")]
         public int gridWidth = 10;
         public int gridHeight = 10;
+
+        [Header("Heart Start Components")]
         public int heartStartLeaf = 3;
         public int heartStartRoot = 3;
         public int heartStartFruit = 3;
@@ -46,50 +48,33 @@ namespace Egglers
             public float tickInterval;
             public float dormantDuration;
         }
-        void Start()
-        {
-            GridManager.Instance.GenerateGrid();
-            InitializeGame();
-        }
         void Awake()
         {
-            // Initialize grid system
-            if (gridSystem == null)
+            // Ensure the GridSystem exists
+            if (gameGrid == null)
             {
-                gridSystem = new GridSystem();
+                gameGrid = new GridSystem();
             }
 
-            gridSystem.Initialize(gridWidth, gridHeight);
-
-            // Set references
-            if (plantManager != null)
-            {
-                plantManager.gridSystem = gridSystem;
-                plantManager.pollutionManager = pollutionManager;
-            }
-
+            // Ensure the PollutionManager has a reference to the grid
             if (pollutionManager != null)
             {
-                pollutionManager.gridSystem = gridSystem;
+                pollutionManager.Initialize(gameGrid);
                 pollutionManager.plantManager = plantManager;
-                pollutionManager.CreateGrid(gridWidth, gridHeight); // Initialize pollution grid
+            }
+            // Ensure the PollutionManager has a reference to the grid
+            if (plantManager != null)
+            {
+                plantManager.Initialize(gameGrid);
+                plantManager.pollutionManager = pollutionManager;
             }
         }
-        void Update()
+        void Start()
         {
-            // for (int x = 0; x < GridManager.Instance.width; x++)
-            // {
-            //     for (int y = 0; y < GridManager.Instance.height; y++)
-            //     {
-            //         GameObject tile = GridManager.Instance.GetTile(x, y);
-            //         if (tile != null)
-            //         {
-            //             TileActions data = tile.GetComponent<TileActions>();
-            //             data?.InvokeAction("billboard");
-            //         }
-            //     }
-            // }
+            gameGrid.Initialize(gridWidth, gridHeight);
+            InitializeGame();
         }
+
         public void InitializeGame()
         {
             // Place pollution sources (predetermined positions)
@@ -105,7 +90,7 @@ namespace Egglers
                     sourceSetup.dormantDuration
                 );
             }
-            
+
             // Start pollution source coroutines (each source pulses at its own rate)
             pollutionManager.StartAllSourcePulses();
 
@@ -116,36 +101,32 @@ namespace Egglers
 
         public bool IsValidHeartPlacement(Vector2Int pos)
         {
-            return gridSystem.IsInBounds(pos) &&
-                   gridSystem.GetTileState(pos) == TileState.Empty;
+            // Check the unified grid for a plant at this position
+            PlantBit existingPlant = gameGrid.GetEntity<PlantBit>(pos);
+            return existingPlant == null;
         }
 
         public void OnPlayerPlacesHeart(Vector2Int pos)
         {
             if (!IsValidHeartPlacement(pos))
             {
-                OnErrorMessage?.Invoke("Cannot place Heart here!");
                 Debug.LogWarning("Invalid Heart placement position");
                 return;
             }
 
-            // Initialize Heart
-            plantManager.InitializeHeart(pos, heartStartLeaf, heartStartRoot, heartStartFruit);
-
-            // Start game loops
+            plantManager.InitializeHeart(pos);
             StartGameLoops();
-
             gameState = GameState.Playing;
             Debug.Log("Game started!");
         }
 
         private void StartGameLoops()
         {
-            // Start plant tick coroutine
             if (plantTickCoroutine != null)
             {
                 StopCoroutine(plantTickCoroutine);
             }
+
             plantTickCoroutine = StartCoroutine(PlantTickCoroutine());
         }
 
@@ -153,9 +134,8 @@ namespace Egglers
         {
             while (gameState == GameState.Playing)
             {
-                plantManager.UpdatePlants();
+                plantManager.UpdatePlants(plantManager.heart);
                 CheckWinCondition();
-
                 yield return new WaitForSeconds(plantTickRate);
             }
         }
@@ -174,7 +154,6 @@ namespace Egglers
             {
                 gameState = GameState.Won;
                 StopGameLoops();
-                OnGameWon?.Invoke();
                 Debug.Log("Victory! All pollution sources destroyed!");
             }
         }
@@ -185,7 +164,6 @@ namespace Egglers
             {
                 gameState = GameState.Lost;
                 StopGameLoops();
-                OnGameLost?.Invoke();
                 Debug.Log("Defeat! The Heart has been overwhelmed by pollution!");
             }
         }
@@ -199,99 +177,39 @@ namespace Egglers
             }
         }
 
-        public void PauseGame()
+        // Player actions
+        public void PlayerManualSprout(Vector2Int parentPos, Vector2Int targetPos)
         {
-            if (gameState == GameState.Playing)
+            if (gameState != GameState.Playing) return;
+
+            PlantBit parent = gameGrid.GetEntity<PlantBit>(parentPos);
+            if (parent != null)
             {
-                gameState = GameState.Paused;
-                Time.timeScale = 0f;
+                plantManager.CreateSprout(parent, targetPos);
             }
         }
 
-        public void ResumeGame()
+        public void PlayerPrune(Vector2Int pos)
         {
-            if (gameState == GameState.Paused)
+            if (gameState != GameState.Playing) return;
+
+            PlantBit plant = gameGrid.GetEntity<PlantBit>(pos);
+            if (plant != null && plant != plantManager.heart)
             {
-                gameState = GameState.Playing;
-                Time.timeScale = 1f;
+                plantManager.KillPlantBit(plant);
             }
         }
 
-        public void RestartGame()
+        public void PlayerApplyGrafts(Vector2Int pos)
         {
-            // Stop coroutines
-            StopGameLoops();
-
-            // Clear all data
-            plantManager.allPlants.Clear();
-            plantManager.heartPlant = null;
-            
-            // Clear pollution data (uses ResetPollutionSystem which clears grid, lists, and dictionaries)
-            pollutionManager.ResetPollutionSystem();
-
-            // Reinitialize grids
-            gridSystem.Initialize(gridWidth, gridHeight);
-            pollutionManager.CreateGrid(gridWidth, gridHeight);
-            
-            InitializeGame();
+            if (gameState != GameState.Playing) return;
+            plantManager.ApplyGraftAtPosition(pos);
         }
 
-        // Public methods for manual player actions
-        public void PlayerManualSprout(Vector2Int plantPos, Vector2Int targetPos)
+        public void PlayerRemoveGrafts(Vector2Int pos, int leaf, int root, int fruit)
         {
-            if (gameState != GameState.Playing)
-            {
-                return;
-            }
-
-            Plant plant = gridSystem.GetEntity<Plant>(plantPos);
-            if (plant != null)
-            {
-                plantManager.ManualSprout(plant, targetPos);
-            }
-        }
-
-        public void PlayerPrune(Vector2Int plantPos)
-        {
-            if (gameState != GameState.Playing)
-            {
-                return;
-            }
-
-            Plant plant = gridSystem.GetEntity<Plant>(plantPos);
-            if (plant != null && !plant.isHeart)
-            {
-                plantManager.DeletePlant(plant, fromPollution: false);
-            }
-        }
-
-        public void PlayerRemoveGrafts(Vector2Int plantPos, int leaf, int root, int fruit)
-        {
-            if (gameState != GameState.Playing)
-            {
-                return;
-            }
-
-            Plant plant = gridSystem.GetEntity<Plant>(plantPos);
-            if (plant != null)
-            {
-                plantManager.RemoveGrafts(plant, leaf, root, fruit);
-            }
-        }
-
-        public void PlayerApplyGrafts(Vector2Int plantPos)
-        {
-            if (gameState != GameState.Playing)
-            {
-                return;
-            }
-
-            Plant plant = gridSystem.GetEntity<Plant>(plantPos);
-            if (plant != null)
-            {
-                plantManager.ApplyGrafts(plant);
-            }
+            if (gameState != GameState.Playing) return;
+            plantManager.RemoveGraftAtPosition(pos, leaf, root, fruit);
         }
     }
 }
-
