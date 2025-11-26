@@ -49,7 +49,8 @@ namespace Egglers
         public int TotalComponents => TotalNaturalComponents + TotalGraftedComponents;
 
         // Cooldowns
-        public float graftingCooldown;
+        public int graftingCooldown;
+        public int sproutingCooldown;
 
         public PlantBit(Vector2Int pos, PlantBitData newData, PlantBitManager manager,
             bool heart = false, int startLeaf = 0, int startRoot = 0, int startFruit = 0, int startMaxComponent = 0)
@@ -161,14 +162,14 @@ namespace Egglers
             UpdateStats();
             plantManager.AddMaxEnergy(energyStorage);
 
-            AttemptAutoSprout();
+            // AttemptSprout();
 
             GridEvents.PlantUpdated(position);
         }
 
-        private void AttemptAutoSprout()
+        private void AttemptSprout()
         {
-            Debug.Log($"[PlantBit] AttemptAutoSprout at {position}");
+            Debug.Log($"[PlantBit] AttemptSprout at {position}");
 
             List<Vector2Int> neighbors = plantManager.gameGrid.GetNeighbors(position);
             foreach (Vector2Int neighborPos in neighbors)
@@ -184,6 +185,8 @@ namespace Egglers
                     plantManager.CreateSprout(this, neighborPos);
                 }
             }
+
+            sproutingCooldown = data.sproutingCooldownDuration;
         }
 
         public void TickUpdate()
@@ -212,6 +215,17 @@ namespace Egglers
                     graftingCooldown--;
                     if (graftingCooldown < 0) graftingCooldown = 0;
                     Debug.Log($"[PlantBit] GraftingCooldown at {position}: {graftingCooldown}");
+                }
+
+                if (sproutingCooldown > 0)
+                {
+                    sproutingCooldown--;
+                    if (sproutingCooldown < 0) sproutingCooldown = 0;
+                    Debug.Log($"[PlantBit] SproutingCooldown at {position}: {sproutingCooldown}");
+                } 
+                else if (UnityEngine.Random.value < data.sproutingChance)
+                {
+                    AttemptSprout();
                 }
             }
         }
