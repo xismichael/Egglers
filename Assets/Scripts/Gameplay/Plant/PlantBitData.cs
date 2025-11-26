@@ -22,7 +22,7 @@ namespace Egglers
 
 
         // baseSproutCost + [total natural components] * naturalSproutScaling + [total grafted components] * graftedSproutCostScaling
-        [Header("Sprouting Costs")]
+        [Header("Sprouting")]
 
         [Tooltip("Base cost to sprout a new plant")]
         public float baseSproutCost = 10f;
@@ -33,6 +33,11 @@ namespace Egglers
         [Tooltip("Additional scaling factor for grafted components")]
         public float graftedSproutCostScaling = 0.3f;
 
+        [Tooltip("Chance to sprout per tick")]
+        public float sproutingChance = 0.01f;
+
+        [Tooltip("Sprouting cooldown")]
+        public int sproutingCooldownDuration = 100;
 
 
         [Header("Grafting Costs")]
@@ -47,7 +52,7 @@ namespace Egglers
         public float removalCostPerComponent = 1.0f;
 
         [Tooltip("Cooldown duration after grafting operations")]
-        public float graftCooldownDuration = 5.0f;
+        public int graftCooldownDuration = 5;
 
         [Tooltip("Amount max component increases each generation")]
         public int maxComponentIncrease = 1;
@@ -56,12 +61,10 @@ namespace Egglers
         public float maxComponentBonus = 1.5f;
 
 
-
         [Header("Extraction Parameters")]
         
         [Tooltip("Multiplication factor for base pollution yield: yield = this * poll * eRate")]
         public float extractionPollutionFactor = 0.1f;
-
 
 
         [Header("Budding")]

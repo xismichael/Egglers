@@ -19,6 +19,7 @@ MonoBehaviour:
   baseSproutCost: 10
   naturalSproutCostScaling: 0.2
   graftedSproutCostScaling: 0.3
+  sproutingChance: 0.5
   baseGraftCost: 5
   graftCostScaling: 0.25
   removalCostPerComponent: 1
