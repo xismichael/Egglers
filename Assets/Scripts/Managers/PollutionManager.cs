@@ -1,29 +1,34 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace Egglers
 {
-    /// <summary>
-    /// Central manager for the pollution system.
-    /// Handles pollution tile/source lifecycle and coordination with GridSystem.
-    /// </summary>
     public class PollutionManager : MonoBehaviour
     {
-        // === Singleton ===
         public static PollutionManager Instance { get; private set; }
 
-        // === Grid reference ===
-        public GridSystem gameGrid;
 
+        public List<PollutionSource> pollutionSources = new List<PollutionSource>();
+
+
+        //gameGrid reference
+        public GridSystem gameGrid;
+        public int gridWidth;
+        public int gridHeight;
+
+
+        //plantManager reference
         public PlantBitManager plantManager;
 
-        // === Entity tracking ===
-        public List<PollutionSource> pollutionSources = new();
-        public List<PollutionSource> activeSources = new();
-        public Dictionary<Vector2Int, PollutionTile> pollutedTiles = new();
 
-        private void Awake()
+        public void Initialize(GridSystem sharedGrid)
+        {
+            gameGrid = sharedGrid;
+            gridWidth = gameGrid.Width;
+            gridHeight = gameGrid.Height;
+        }
+
+        void Awake()
         {
             if (Instance != null)
             {
@@ -32,215 +37,208 @@ namespace Egglers
             }
             Instance = this;
         }
-        /// <summary>
-        /// Initializes the pollution grid with the specified dimensions.
-        /// Called by GameManager during game initialization.
-        /// </summary>
-        public void Initialize(GridSystem sharedGrid)
-        {
-            gameGrid = sharedGrid;
-        }
-        /// <summary>
-        /// Returns all 4-directional neighbors of a position.
-        /// </summary>
+
+
         public List<Vector2Int> GetAdjacentPositions(Vector2Int pos)
         {
-            return gameGrid.GetNeighbors(pos, includeDiagonal: false);
+            List<Vector2Int> adjacentPositions = new List<Vector2Int>();
+
+            // 4-directional: up, down, left, right
+            Vector2Int[] directions = new Vector2Int[]
+            {
+                new Vector2Int(0, 1),
+                new Vector2Int(0, -1),
+                new Vector2Int(-1, 0),
+                new Vector2Int(1, 0)
+            };
+
+            foreach (var dir in directions)
+            {
+                Vector2Int neighbor = pos + dir;
+                
+                // Check if in bounds
+                if (neighbor.x >= 0 && neighbor.x < gridWidth && 
+                    neighbor.y >= 0 && neighbor.y < gridHeight)
+                {
+                    adjacentPositions.Add(neighbor);
+                }
+            }
+
+            return adjacentPositions;
         }
 
-        /// <summary>
-        /// Adds a pollution tile at a position or updates an existing one.
-        /// </summary>
         public PollutionTile AddPollutionToPosition(Vector2Int pos, float spreadRate, float strength, float resistance)
         {
-            PollutionTile tile = gameGrid.GetEntity<PollutionTile>(pos);
-            if (tile != null)
-            {
-                tile.pollutionSpreadRate += spreadRate;
-                tile.pollutionStrength += strength;
-                tile.pollutionResistance += resistance;
-            }
-            else
-            {
-                tile = new PollutionTile(pos)
-                {
-                    pollutionSpreadRate = spreadRate,
-                    pollutionStrength = strength,
-                    pollutionResistance = resistance,
-                    isFrozen = false
-                };
 
-                gameGrid.SetEntity(tile);
-                // gameGrid.SetTileState(pos, TileState.Pollution);
-                pollutedTiles[pos] = tile;
-            }
-
+            PollutionTile newTile = gameGrid.GetOrCreatePollutionTile(pos, spreadRate, strength, resistance);
             GridEvents.PollutionUpdated(pos);
-            return tile;
+            
+            return newTile;
         }
 
-        /// <summary>
-        /// Gets an existing tile or creates one with default values.
-        /// </summary>
-        public PollutionTile GetOrCreateTile(Vector2Int pos)
-        {
-            return AddPollutionToPosition(pos, 10f, 10f, 5f);
-        }
-
-        /// <summary>
-        /// Adds pollution stats to an existing tile (used during spreading).
-        /// Does not create a new tile - the tile must already exist.
-        /// </summary>
         public void AddPollutionToTile(PollutionTile tile, float spreadRate, float strength, float resistance)
         {
+            // Add pollution to existing tile
             tile.pollutionSpreadRate += spreadRate;
             tile.pollutionStrength += strength;
             tile.pollutionResistance += resistance;
-
             GridEvents.PollutionUpdated(tile.position);
         }
-        /// <summary>
-        /// Creates a pollution source at a position.
-        /// </summary>
-        public void CreateSource(Vector2Int pos, PollutionType pollutionType, SourceTier tier, float hp, float emissionRate, float pulseRate, float dormantDuration)
+
+        public void AddPollutionSource(Vector2Int pos, float spreadRate, float strength, float resistance, float pulseRate, float dormantDuration)
         {
-            var source = new PollutionSource(pos, emissionRate, emissionRate, emissionRate * 0.5f, pulseRate, dormantDuration, hp);
-
-            gameGrid.SetEntity(source);
-
+            // Create new pollution source
+            PollutionSource source = new PollutionSource(pos, spreadRate, strength, resistance, pulseRate, dormantDuration);
+            
+            // Add to sources list
             pollutionSources.Add(source);
-            activeSources.Add(source);
 
+            // Add to grid
+            gameGrid.SetEntity(source);
             GridEvents.PollutionUpdated(pos);
         }
 
-        /// <summary>
-        /// Starts pulse coroutines for all sources.
-        /// </summary>
         public void StartAllSourcePulses()
         {
-            foreach (var source in pollutionSources)
+            foreach (PollutionSource source in pollutionSources)
             {
                 StartCoroutine(SourcePulseCoroutine(source));
             }
         }
 
-        /// <summary>
-        /// Removes a pollution tile or source at a position.
-        /// Cleans up connections and tracking lists.
-        /// </summary>
-        public void RemovePollutionAt(Vector2Int pos)
+        public void ResetPollutionSystem()
         {
-            // Remove PollutionTile if it exists
-            PollutionTile tile = gameGrid.GetEntity<PollutionTile>(pos);
-            if (tile != null)
-            {
-                // Disconnect from connected sources
-                foreach (var source in tile.connectedSources)
-                {
-                    source.connectedTiles.Remove(tile);
-                }
-                tile.connectedSources.Clear();
+            // Stop all coroutines
+            StopAllCoroutines();
+            
+            // Clear all data structures
+            pollutionSources.Clear();
 
-                pollutedTiles.Remove(pos);
 
-                // Remove from grid by type
-                gameGrid.RemoveEntity(tile);
-            }
-
-            // Remove PollutionSource if it exists
-            PollutionSource sourceEntity = gameGrid.GetEntity<PollutionSource>(pos);
-            if (sourceEntity != null)
-            {
-                // Disconnect from connected tiles
-                foreach (var connectedTile in sourceEntity.connectedTiles)
-                {
-                    connectedTile.connectedSources.Remove(sourceEntity);
-                }
-                sourceEntity.connectedTiles.Clear();
-
-                pollutionSources.Remove(sourceEntity);
-                activeSources.Remove(sourceEntity);
-
-                // Remove from grid by type
-                gameGrid.RemoveEntity(sourceEntity);
-            }
-
-            // Notify the system
-            GridEvents.PollutionUpdated(pos);
+            //add further cleanup logic later
+            
         }
 
-        /// <summary>
-        /// Damages a pollution tile proportionally to the specified amount.
-        /// </summary>
-        public void DamagePollutionAt(Vector2Int pos, float damage)
+        // Helper functions for plant manager to interact with pollution
+        public void RemovePollutionAt(int x, int y)
         {
-            var tile = gameGrid.GetEntity<PollutionTile>(pos);
-            if (tile == null) return;
-
-            tile.isFrozen = true;
-            float total = tile.GetTotalPollution();
-            if (total > 0f)
+            // Check bounds
+            if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
             {
-                float ratio = Mathf.Min(damage / total, 1f);
-                tile.pollutionSpreadRate *= 1f - ratio;
-                tile.pollutionStrength *= 1f - ratio;
-                tile.pollutionResistance *= 1f - ratio;
+                return;
             }
 
-            if (tile.GetTotalPollution() < 0.1f)
-                RemovePollutionAt(pos);
+            PollutionTile pollutionTile = gameGrid.GetEntity<PollutionTile>(new Vector2Int(x, y));
+
+            if (pollutionTile != null)
+            {
+                // Disconnect from all sources
+                foreach (PollutionSource source in pollutionTile.connectedSources)
+                {
+                    source.connectedTiles.Remove(pollutionTile);
+                }
+                pollutionTile.connectedSources.Clear();
+                
+                gameGrid.RemoveEntity(pollutionTile);
+                GridEvents.PollutionUpdated(new Vector2Int(x, y));
+            }
+
+            //check pollution source at position
+            PollutionSource pollutionSource = gameGrid.GetEntity<PollutionSource>(new Vector2Int(x, y));
+            if (pollutionSource != null)
+            {
+                RemoveSource(pollutionSource);
+            }
+
+            
+        }
+
+        public void ReducePollutionAt(int x, int y, float percentage)
+        {
+            // Check bounds
+            if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
+            {
+                return;
+            }
+
+            PollutionTile pollutionTile = gameGrid.GetEntity<PollutionTile>(new Vector2Int(x, y));
+            if (pollutionTile == null) return;
+
+            // Freeze tile to prevent it from spreading/receiving while being reduced
+            pollutionTile.isFrozen = true;
+            
+            // Reduce by percentage
+            float reductionFactor = 1f - (percentage / 100f);
+            pollutionTile.pollutionSpreadRate *= reductionFactor;
+            pollutionTile.pollutionStrength *= reductionFactor;
+            pollutionTile.pollutionResistance *= reductionFactor;
+
+            // Remove if pollution is too low
+            if (pollutionTile.GetTotalPollution() < 0.1f)
+            {
+                RemovePollutionAt(x, y);
+            }
             else
             {
-                tile.isFrozen = false;
+                GridEvents.PollutionUpdated(new Vector2Int(x, y));
             }
+
+        }
+
+        public void RemoveSourceAt(int x, int y)
+        {
+            // Check bounds
+            if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
+            {
+                return;
+            }
+
+            PollutionSource pollutionSource = gameGrid.GetEntity<PollutionSource>(new Vector2Int(x, y));
+            if (pollutionSource == null) return;
+            RemoveSource(pollutionSource);
+        }
+
+        public void RemoveSource(PollutionSource pollutionSource)
+        {
+            if (pollutionSource == null) return;
+
+            pollutionSources.Remove(pollutionSource);
+
+            Vector2Int pos = pollutionSource.position;
+            //remove all connected tiles from source
+            foreach (PollutionTile tile in pollutionSource.connectedTiles)
+            {
+                tile.connectedSources.Remove(pollutionSource);
+            }
+            pollutionSource.connectedTiles.Clear();
+            gameGrid.RemoveEntity(pollutionSource);
             GridEvents.PollutionUpdated(pos);
+
         }
 
-        /// <summary>
-        /// Returns the total pollution at a position (tile or source).
-        /// </summary>
-        public float GetPollutionLevelAt(Vector2Int pos)
+        public void FreezeTileAt(int x, int y)
         {
-            var tile = gameGrid.GetEntity<PollutionTile>(pos);
-            if (tile != null) return tile.GetTotalPollution();
+            // Check bounds
+            if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
+            {
+                return;
+            }
 
-            var source = gameGrid.GetEntity<PollutionSource>(pos);
-            return source != null ? source.GetTotalPollution() : 0f;
+            PollutionTile pollutionTile = gameGrid.GetEntity<PollutionTile>(new Vector2Int(x, y));
+            if (pollutionTile == null) return;
+            pollutionTile.isFrozen = true;
         }
 
-        /// <summary>
-        /// Freezes a pollution tile at a position.
-        /// </summary>
-        public void FreezeTileAt(Vector2Int pos)
+        System.Collections.IEnumerator SourcePulseCoroutine(PollutionSource source)
         {
-            var tile = gameGrid.GetEntity<PollutionTile>(pos);
-            if (tile == null) return;
-
-            tile.isFrozen = true;
-            GridEvents.PollutionUpdated(pos);
-        }
-
-        /// <summary>
-        /// Coroutine that handles a single source's pulse cycle.
-        /// 
-        /// Lifecycle:
-        /// 1. Wait for dormant period (source inactive)
-        /// 2. Pulse repeatedly at source's individual rate (source active)
-        /// 3. Stop if source is destroyed
-        /// 
-        /// Each source runs its own coroutine independently.
-        /// </summary>
-        private IEnumerator SourcePulseCoroutine(PollutionSource source)
-        {
-            // Phase 1: Dormant period
+            // Wait for dormant period
             while (source.timeSinceCreation < source.dormantDuration)
             {
                 source.timeSinceCreation += Time.deltaTime;
-                yield return null; // Wait one frame
+                yield return null;
             }
-
-            // Phase 2: Active pulsing
+            
+            // Continuously pulse at the source's rate
             while (pollutionSources.Contains(source))
             {
                 source.Pulse();
@@ -248,21 +246,13 @@ namespace Egglers
             }
         }
 
-        /// <summary>
-        /// Resets the pollution system.
-        /// </summary>
-        public void ResetPollutionSystem()
+        public float GetPollutionLevelAt(Vector2Int pos)
         {
-            StopAllCoroutines();
-            foreach (var pos in new List<Vector2Int>(pollutedTiles.Keys))
-                RemovePollutionAt(pos);
-
-            foreach (var source in new List<PollutionSource>(pollutionSources))
-                RemovePollutionAt(source.position);
-
-            pollutedTiles.Clear();
-            pollutionSources.Clear();
-            activeSources.Clear();
+            PollutionTile pollutionTile = gameGrid.GetEntity<PollutionTile>(pos);
+            PollutionSource pollutionSource = gameGrid.GetEntity<PollutionSource>(pos);
+            if (pollutionTile == null && pollutionSource == null) return 0f;
+            if (pollutionTile != null) return pollutionTile.GetTotalPollution();
+            return pollutionSource.GetTotalPollution();
         }
     }
 }

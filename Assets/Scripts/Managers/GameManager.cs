@@ -41,11 +41,11 @@ namespace Egglers
         public class SourceSetup
         {
             public Vector2Int position;
-            public PollutionType pollutionType;
-            public SourceTier tier;
-            public float hp;
-            public float emissionRate;
-            public float tickInterval;
+            [Header("Pollution stats")]
+            public float spreadRate;
+            public float strength;
+            public float resistance;
+            public float pulseRate;
             public float dormantDuration;
         }
         void Awake()
@@ -80,19 +80,15 @@ namespace Egglers
             // Place pollution sources (predetermined positions)
             foreach (SourceSetup sourceSetup in sourcesSetup)
             {
-                pollutionManager.CreateSource(
+                pollutionManager.AddPollutionSource(
                     sourceSetup.position,
-                    sourceSetup.pollutionType,
-                    sourceSetup.tier,
-                    sourceSetup.hp,
-                    sourceSetup.emissionRate,
-                    sourceSetup.tickInterval,
+                    sourceSetup.spreadRate,
+                    sourceSetup.strength,
+                    sourceSetup.resistance,
+                    sourceSetup.pulseRate,
                     sourceSetup.dormantDuration
                 );
             }
-
-            // Start pollution source coroutines (each source pulses at its own rate)
-            pollutionManager.StartAllSourcePulses();
 
             // Start heart placement mode
             gameState = GameState.HeartPlacement;
@@ -119,6 +115,8 @@ namespace Egglers
             gameState = GameState.Playing;
 
             StartGameLoops();
+            // Start pollution source coroutines (each source pulses at its own rate)
+            pollutionManager.StartAllSourcePulses();
             Debug.Log("Game started!");
         }
 
@@ -147,8 +145,8 @@ namespace Egglers
 
         public void CheckWinCondition()
         {
-            Debug.Log("CheckWinCondition: " + pollutionManager.activeSources.Count);
-            if (pollutionManager.activeSources.Count == 0)
+            Debug.Log("CheckWinCondition: " + pollutionManager.pollutionSources.Count);
+            if (pollutionManager.pollutionSources.Count == 0)
             {
                 TriggerWin();
             }

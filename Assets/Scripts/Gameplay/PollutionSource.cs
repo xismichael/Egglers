@@ -3,38 +3,27 @@ using UnityEngine;
 
 namespace Egglers
 {
-    /// <summary>
-    /// Represents a pollution source on the grid.
-    /// Sources are the origin points of pollution - they emit pollution infinitely at regular intervals (pulses).
-    /// Sources have HP and can be destroyed by adjacent plants that are stronger than the source's total pollution.
-    /// </summary>
     public class PollutionSource
     {
-        // === Grid Position ===
         public Vector2Int position;
-
-        // === Emission Stats ===
-        public float pollutionSpreadRate;   // How fast emitted pollution spreads
-        public float pollutionStrength;     // Offensive power of emitted pollution
-        public float pollutionResistance;   // Defensive power of emitted pollution
-
-        // === Health System ===
-        public float maxHp;      // Maximum hit points
-        public float currentHp;  // Current hit points (source is destroyed when this reaches 0)
-
-        // === Timing Control ===
-        public float pulseRate;        // How often the source emits pollution (in seconds)
-        public float dormantDuration;  // Initial delay before the source becomes active (in seconds)
-        public float timeSinceCreation; // Tracks time for dormant period
+        
+        // Pollution stats (what it emits)
+        public float pollutionSpreadRate;
+        public float pollutionStrength;
+        public float pollutionResistance;
+        
+        // Timing
+        public float pulseRate; // how often it spreads (in seconds)
+        public float dormantDuration; // delay before it starts (in seconds)
+        
+        // Internal tracking
+        public float timeSinceCreation;
         public bool IsActive => timeSinceCreation >= dormantDuration;
-
-        // === Network Tracking ===
-        public List<PollutionTile> connectedTiles = new List<PollutionTile>();
-
-        /// <summary>
-        /// Constructor for pollution source.
-        /// </summary>
-        public PollutionSource(Vector2Int pos, float spreadRate, float strength, float resistance, float pulse, float dormant, float hp = 50f)
+        
+        // Network tracking
+        public List<PollutionTile> connectedTiles = new List<PollutionTile>(); // all tiles connected to this source
+        
+        public PollutionSource(Vector2Int pos, float spreadRate, float strength, float resistance, float pulse, float dormant)
         {
             position = pos;
             pollutionSpreadRate = spreadRate;
@@ -43,150 +32,141 @@ namespace Egglers
             pulseRate = pulse;
             dormantDuration = dormant;
             timeSinceCreation = 0f;
-            maxHp = hp;
-            currentHp = hp;
         }
-
-        /// <summary>
-        /// Returns the sum of all emission stats.
-        /// Used to determine the source's strength when plants try to damage it.
-        /// </summary>
+        
         public float GetTotalPollution()
         {
             return pollutionSpreadRate + pollutionStrength + pollutionResistance;
         }
-
-        /// <summary>
-        /// Main emission logic - called at regular intervals by PollutionManager's coroutine.
-        /// </summary>
+        
         public void Pulse()
         {
-            if (!IsActive) return;
-
+            // Only pulse if active
+            if (!IsActive)
+            {
+                return;
+            }
+            
+            // Take snapshot of tiles before the pulse, so new tiles dont spread yet
             List<PollutionTile> tilesBeforePulse = new List<PollutionTile>(connectedTiles);
+            
+            // Get adjacent positions
             List<Vector2Int> adjacentPositions = PollutionManager.Instance.GetAdjacentPositions(position);
-
-            float totalPollution = GetTotalPollution();
-            float maxNeighborPollution = totalPollution * 0.9f;
-
+            
+            float myTotalPollution = GetTotalPollution();
+            float maxNeighborPollution = myTotalPollution * 0.9f;
+            
+            // Calculate 10% to emit (like tiles)
             float emitSpreadRate = pollutionSpreadRate * 0.1f;
             float emitStrength = pollutionStrength * 0.1f;
             float emitResistance = pollutionResistance * 0.1f;
             float totalEmit = emitSpreadRate + emitStrength + emitResistance;
-
-            bool isAcidic = (totalPollution > 0 && pollutionStrength >= totalPollution * 0.5f);
-            GridSystem gridSystem = PollutionManager.Instance.gameGrid;
-
+            
             foreach (Vector2Int neighborPos in adjacentPositions)
             {
-                TileState tileState = gridSystem.GetTileState(neighborPos);
+                PollutionSource neighborSource = PollutionManager.Instance.gameGrid.GetEntity<PollutionSource>(neighborPos);
+                if (neighborSource != null) continue;
+                
+                PollutionTile neighborTile = PollutionManager.Instance.gameGrid.GetEntity<PollutionTile>(neighborPos);
+                PlantBit neighborPlantBit = PollutionManager.Instance.gameGrid.GetEntity<PlantBit>(neighborPos);
 
-                // === Handle Plants and Heart ===
-                if (tileState == TileState.Plant || tileState == TileState.Heart)
+                if (neighborPlantBit != null)
                 {
-                    PlantBit plant = gridSystem.GetEntity<PlantBit>(neighborPos);
-                    if (plant != null)
-                    {
-                        if (plant.isHeart)
-                        {
-                            float heartATD = plant.attackDamage;
-                            if (isAcidic) heartATD *= 0.67f;
-
-                            if (heartATD <= pollutionStrength)
-                            {
-                                GameManager gameManager = Object.FindObjectOfType<GameManager>();
-                                gameManager?.TriggerLoss();
-                            }
-
-                            continue; // Heart cannot be killed
-                        }
-
-                        float effectiveATD = plant.phase == PlantBitPhase.Bud && plant.parent != null
-                            ? plant.parent.attackDamage
-                            : plant.attackDamage;
-
-                        if (isAcidic) effectiveATD *= 0.67f;
-
-                        if (effectiveATD <= pollutionStrength)
-                        {
-                            PollutionManager.Instance.plantManager.KillPlantBit(plant);
-
-                            PollutionTile newTile = PollutionManager.Instance.AddPollutionToPosition(neighborPos, emitSpreadRate, emitStrength, emitResistance);
-                            ConnectToTile(newTile);
-                        }
-
-                        continue;
-                    }
+                    if (neighborPlantBit.attackDamage >= pollutionStrength) continue;
+                    PollutionManager.Instance.plantManager.KillPlantBit(neighborPlantBit);
                 }
-
-                if (tileState == TileState.PollutionSource) continue;
-
-                PollutionTile neighborTile = gridSystem.GetEntity<PollutionTile>(neighborPos);
-
+                
+                // If empty (null), create new tile
                 if (neighborTile == null)
                 {
                     PollutionTile newTile = PollutionManager.Instance.AddPollutionToPosition(neighborPos, emitSpreadRate, emitStrength, emitResistance);
+                    // Connect this source to the new tile
                     ConnectToTile(newTile);
                 }
-                else if (!neighborTile.isFrozen)
+                // If it's a PollutionTile
+                else
                 {
+                    // Skip frozen tiles
+                    if (neighborTile.isFrozen)
+                    {
+                        continue;
+                    }
+                    
+                    // Add pollution only if under 90% cap
                     float neighborCurrent = neighborTile.GetTotalPollution();
                     if (neighborCurrent < maxNeighborPollution)
                     {
+                        // Calculate how much room is left
                         float roomLeft = maxNeighborPollution - neighborCurrent;
-                        float scale = totalEmit > roomLeft ? roomLeft / totalEmit : 1f;
-                        PollutionManager.Instance.AddPollutionToTile(neighborTile, emitSpreadRate * scale, emitStrength * scale, emitResistance * scale);
+                        
+                        // If adding full amount would exceed cap, scale it down
+                        if (totalEmit > roomLeft)
+                        {
+                            float scaleFactor = roomLeft / totalEmit;
+                            PollutionManager.Instance.AddPollutionToTile(neighborTile, emitSpreadRate * scaleFactor, emitStrength * scaleFactor, emitResistance * scaleFactor);
+                        }
+                        else
+                        {
+                            PollutionManager.Instance.AddPollutionToTile(neighborTile, emitSpreadRate, emitStrength, emitResistance);
+                        }
+                        
+                        // Connect this source to the tile
                         ConnectToTile(neighborTile);
                     }
                 }
+                // If it's another PollutionSource, skip
             }
-
-            // Trigger cascading spread
+            
+            // Now spread tiles that existed BEFORE this pulse (not newly created ones)
             foreach (PollutionTile tile in tilesBeforePulse)
             {
                 tile.Spread();
             }
         }
-
-        /// <summary>
-        /// Establishes bidirectional connection between this source and a tile.
-        /// </summary>
+        
         private void ConnectToTile(PollutionTile tile)
         {
+            // Add source to tile's connected sources
             if (!tile.connectedSources.Contains(this))
-                tile.connectedSources.Add(this);
-
-            if (!connectedTiles.Contains(tile))
-                connectedTiles.Add(tile);
-        }
-
-        /// <summary>
-        /// Reduces source HP. When HP reaches 0, the source should be destroyed.
-        /// </summary>
-        public void TakeDamage(float damage)
-        {
-            if (damage <= 0f) return;
-
-            // Deduct HP
-            currentHp -= damage;
-            if (currentHp < 0f) currentHp = 0f;
-
-            Debug.Log($"[PollutionSource] Took {damage} damage at {position}. Current HP: {currentHp}/{maxHp}");
-
-            // If destroyed, properly remove it
-            if (ShouldBeDestroyed())
             {
-                Debug.Log($"[PollutionSource] Destroyed at {position}");
-                PollutionManager.Instance.RemovePollutionAt(position); // <--- important
+                tile.connectedSources.Add(this);
+            }
+            
+            // Add tile to source's connected tiles
+            if (!connectedTiles.Contains(tile))
+            {
+                connectedTiles.Add(tile);
             }
         }
 
-        /// <summary>
-        /// Returns true when the source has been destroyed (HP <= 0).
-        /// </summary>
-        public bool ShouldBeDestroyed()
+        public void TakeDamage(float amount)
         {
-            return currentHp <= 0;
+            if (amount <= 0f)
+            {
+                return;
+            }
+
+            float currentTotal = GetTotalPollution();
+            if (currentTotal <= 0f)
+            {
+                return;
+            }
+
+            float damage = Mathf.Min(amount, currentTotal);
+            float ratio = damage / currentTotal;
+
+            pollutionSpreadRate = Mathf.Max(0f, pollutionSpreadRate - (pollutionSpreadRate * ratio));
+            pollutionStrength = Mathf.Max(0f, pollutionStrength - (pollutionStrength * ratio));
+            pollutionResistance = Mathf.Max(0f, pollutionResistance - (pollutionResistance * ratio));
+
+            if (GetTotalPollution() <= 0.1f)
+            {
+                PollutionManager.Instance.RemoveSource(this);
+            }
+            else
+            {
+                GridEvents.PollutionUpdated(position);
+            }
         }
     }
 }

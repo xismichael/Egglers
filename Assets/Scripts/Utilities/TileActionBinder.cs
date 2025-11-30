@@ -111,7 +111,7 @@ namespace Egglers
             PollutionSource source = pollutionManager?.gameGrid.GetEntity<PollutionSource>(pos);
             if (source != null)
             {
-                Debug.Log($"  PollutionSource: HP={source.currentHp}/{source.maxHp}, " +
+                Debug.Log($"  PollutionSource: Total={source.GetTotalPollution()}, " +
                           $"SpreadRate={source.pollutionSpreadRate}, Strength={source.pollutionStrength}, " +
                           $"Resistance={source.pollutionResistance}, PulseRate={source.pulseRate}, " +
                           $"Dormant={source.dormantDuration}, Active={source.IsActive}, " +
