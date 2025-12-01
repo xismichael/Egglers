@@ -6,6 +6,7 @@ namespace Egglers
 {
     public class GameManager : MonoBehaviour
     {
+        public static GameManager Instance { get; private set; }
         public GridSystem gameGrid;
 
         [Header("Managers")]
@@ -50,6 +51,13 @@ namespace Egglers
         }
         void Awake()
         {
+            if (Instance != null)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            Instance = this;
+
             // Ensure the GridSystem exists
             if (gameGrid == null)
             {
@@ -71,7 +79,9 @@ namespace Egglers
         }
         void Start()
         {
+            // Initialize grid size
             gameGrid.Initialize(gridWidth, gridHeight);
+            pollutionManager.InitializeGridSize(gridWidth, gridHeight);
             InitializeGame();
         }
 
@@ -90,8 +100,6 @@ namespace Egglers
                 );
             }
 
-            // Initialize grid size
-            pollutionManager.InitializeGridSize(gridWidth, gridHeight);
 
             // Start heart placement mode
             gameState = GameState.HeartPlacement;
@@ -148,7 +156,7 @@ namespace Egglers
 
         public void CheckWinCondition()
         {
-            Debug.Log("CheckWinCondition: " + pollutionManager.pollutionSources.Count);
+            // Debug.Log("CheckWinCondition: " + pollutionManager.pollutionSources.Count);
             if (pollutionManager.pollutionSources.Count == 0)
             {
                 TriggerWin();

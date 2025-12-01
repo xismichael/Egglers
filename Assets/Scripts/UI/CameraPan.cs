@@ -8,19 +8,24 @@ public class CameraPan : MonoBehaviour
     public float minZoom = 5f;
     public float maxZoom = 20f;
 
-    [Tooltip("Optional Boundaries")]
-    public float minX, maxX, minZ, maxZ;
+    [Header("Pan Limits")]
+    public Vector2 panLimitX = new Vector2(-10f, 10f);
+    public Vector2 panLimitZ = new Vector2(-10f, 10f);
 
     public float panSpeed = 1f;
 
     private Camera cam;
     private bool isPanning = false;
     private Vector3 dragOriginWorld;
+    private Vector3 startPos;
 
     void Awake()
     {
         cam = GetComponent<Camera>();
-        if (cam == null) Debug.LogError("CameraPan1to1: No camera found!");
+        if (cam == null) Debug.LogError("CameraPan: No camera found!");
+
+        // Store starting position as center
+        startPos = transform.position;
     }
 
     void Update()
@@ -57,14 +62,18 @@ public class CameraPan : MonoBehaviour
             // Delta in world space
             Vector3 delta = dragOriginWorld - currentMouseWorld;
 
-            transform.position += delta * panSpeed;
+            Vector3 newPos = transform.position + delta * panSpeed;
 
-            // Clamp camera position
-            transform.position = new Vector3(
-                Mathf.Clamp(transform.position.x, minX, maxX),
-                transform.position.y,
-                Mathf.Clamp(transform.position.z, minZ, maxZ)
-            );
+            // Clamp relative to startPos
+            float minXWorld = startPos.x + panLimitX.x;
+            float maxXWorld = startPos.x + panLimitX.y;
+            float minZWorld = startPos.z + panLimitZ.x;
+            float maxZWorld = startPos.z + panLimitZ.y;
+
+            newPos.x = Mathf.Clamp(newPos.x, minXWorld, maxXWorld);
+            newPos.z = Mathf.Clamp(newPos.z, minZWorld, maxZWorld);
+
+            transform.position = newPos;
 
             // Update drag origin for next frame
             dragOriginWorld = MousePositionToXZPlane(mouseScreenPos);

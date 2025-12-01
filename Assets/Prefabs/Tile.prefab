@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 1895757864152960132}
   - component: {fileID: 2880683017382489383}
   - component: {fileID: 8869066935436344105}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Text (TMP)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -211,8 +211,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   actions:
-  - actionType: 5
+  - actionType: 4
+    enabled: 1
   - actionType: 6
+    enabled: 1
+  - actionType: 5
+    enabled: 1
 --- !u!114 &1792733066378950668
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -225,9 +229,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba410d47278c9aa40bed2d2010b8b3cc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gameManager: {fileID: 0}
   plantBitManager: {fileID: 0}
   pollutionManager: {fileID: 0}
-  gameManager: {fileID: 0}
 --- !u!114 &87511664093395086
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -240,9 +244,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cc7465a68d5eb9a48a827a4824b0ac92, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridVisualTile
+  gameManager: {fileID: 0}
   plantBitManager: {fileID: 0}
   pollutionManager: {fileID: 0}
-  gameManager: {fileID: 0}
   plant1: {fileID: 7838884833924085954}
   plant2: {fileID: 7468352268202211967}
   plant3: {fileID: 7639820867750138124}
@@ -261,7 +265,7 @@ GameObject:
   - component: {fileID: 8014441523784653898}
   - component: {fileID: 2936162344936562387}
   - component: {fileID: 282749893079427836}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
   m_Icon: {fileID: 0}

@@ -9,9 +9,9 @@ namespace Egglers
     public class TileActionBinder : MonoBehaviour
     {
         [Header("Managers")]
+        [SerializeField] public GameManager gameManager;
         [SerializeField] public PlantBitManager plantBitManager;
         [SerializeField] public PollutionManager pollutionManager;
-        [SerializeField] public GameManager gameManager;
 
         private TileActions tileActions;
 
@@ -40,7 +40,8 @@ namespace Egglers
                 TileActionType.Plant3 => tile => SetActivePlant(tile, 2),
                 TileActionType.Billboard => tile => SetBillboard(tile, "Hello World!"),
                 TileActionType.PlaceHeart => PlaceHeart,
-                TileActionType.Debug => DebugTile, // <-- New debug action
+                TileActionType.Debug => DebugTile,
+                TileActionType.NipBud => NipBud,
                 _ => null
             };
         }
@@ -130,6 +131,37 @@ namespace Egglers
             }
         }
 
+        private void NipBud(GameObject tile)
+        {
+            if (tile == null || plantBitManager == null) return;
+
+            GridVisualTile visual = tile.GetComponent<GridVisualTile>();
+            if (visual == null) return;
+
+            PlantBit plant = plantBitManager.gameGrid.GetEntity<PlantBit>(visual.coords);
+            if (plant == null)
+            {
+                Debug.Log("[NipBud] No plant on this tile.");
+                return;
+            }
+
+            if (plant.isHeart)
+            {
+                Debug.LogWarning("[NipBud] Cannot nip the heart!");
+                return;
+            }
+
+            float refund = plant.sproutCost * 0.5f;
+
+            Debug.Log($"[NipBud] Killing plant at {plant.position}, refunding {refund} energy");
+
+            plantBitManager.KillPlantBit(plant);
+            plantBitManager.AddEnergy(refund);
+
+            GridEvents.PlantUpdated(plant.position);
+        }
+
+
         private void PlaceHeart(GameObject tile)
         {
             GridVisualTile visual = tile.GetComponent<GridVisualTile>();
@@ -144,6 +176,11 @@ namespace Egglers
             }
 
             gameManager.OnPlayerPlacesHeart(pos);
+
+            // // Refresh context menu to gray out PlaceHeart
+            // TileContextMenu menu = FindFirstObjectByType<TileContextMenu>();
+            // menu?.RefreshContextMenu();
         }
+
     }
 }

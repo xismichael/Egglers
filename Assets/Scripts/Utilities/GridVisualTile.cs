@@ -11,9 +11,9 @@ namespace Egglers
     public class GridVisualTile : MonoBehaviour
     {
         [Header("Managers")]
+        [SerializeField] public GameManager gameManager;
         [SerializeField] public PlantBitManager plantBitManager;
         [SerializeField] public PollutionManager pollutionManager;
-        [SerializeField] public GameManager gameManager;
 
         [Header("Plant Objects")]
         public GameObject plant1;
@@ -107,6 +107,36 @@ namespace Egglers
         }
 
         #endregion
+
+        public void RefreshActions()
+        {
+            TileActions tileActions = GetComponent<TileActions>();
+            if (tileActions == null || tileActions.actions == null) return;
+
+            Vector2Int pos = coords;
+
+            bool hasPollution =
+                PollutionManager.Instance.gameGrid.GetEntity<PollutionTile>(pos) != null ||
+                PollutionManager.Instance.gameGrid.GetEntity<PollutionSource>(pos) != null;
+
+            bool hasHeart =
+                PlantBitManager.Instance.gameGrid.GetEntity<PlantBit>(pos)?.isHeart == true;
+
+            foreach (var action in tileActions.actions)
+            {
+                switch (action.actionType)
+                {
+                    case TileActionType.PlaceHeart:
+                        // Disable if pollution OR heart already exists
+                        action.enabled = !hasPollution && !hasHeart;
+                        break;
+
+                    default:
+                        action.enabled = true;
+                        break;
+                }
+            }
+        }
 
         #region Plant & Billboard Methods
 

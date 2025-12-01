@@ -221,8 +221,8 @@ namespace Egglers
                 {
                     sproutingCooldown--;
                     if (sproutingCooldown < 0) sproutingCooldown = 0;
-                    Debug.Log($"[PlantBit] SproutingCooldown at {position}: {sproutingCooldown}");
-                } 
+                    // Debug.Log($"[PlantBit] SproutingCooldown at {position}: {sproutingCooldown}");
+                }
                 else if (UnityEngine.Random.value < data.sproutingChance)
                 {
                     AttemptSprout();
@@ -254,7 +254,7 @@ namespace Egglers
 
             // Determine energy to extract
             float energyGain = Mathf.Min(extractionRate, totalPollution);
-            Debug.Log($"[PlantBit] Extracting {energyGain} energy at {position} (total pollution: {totalPollution})");
+            // Debug.Log($"[PlantBit] Extracting {energyGain} energy at {position} (total pollution: {totalPollution})");
 
             // Apply damage proportionally
             if (pollutionTile != null)

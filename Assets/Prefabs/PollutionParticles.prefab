@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 1445849928303540504}
   - component: {fileID: 5145452262211227403}
   - component: {fileID: 635960345487805483}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: spread speed
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4847,7 +4847,7 @@ GameObject:
   - component: {fileID: 7923456757144169045}
   - component: {fileID: 6009115569887198972}
   - component: {fileID: 3385788715590928109}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: Attack
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -9681,7 +9681,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5309346204526207806}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: PollutionParticles
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -9717,7 +9717,7 @@ GameObject:
   - component: {fileID: 6634722061877874623}
   - component: {fileID: 2763231403780740006}
   - component: {fileID: 648493209061838836}
-  m_Layer: 0
+  m_Layer: 1
   m_Name: Resistance
   m_TagString: Untagged
   m_Icon: {fileID: 0}

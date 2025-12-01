@@ -9,10 +9,11 @@ namespace Egglers
         Plant2,
         Plant3,
         Billboard,
-        SpawnPollution,
         PlaceHeart,
-        Debug
+        Debug,
+        NipBud
     }
+
     public class TileActions : MonoBehaviour
     {
 
@@ -20,9 +21,8 @@ namespace Egglers
         public class TileAction
         {
             public TileActionType actionType;
-
-            [NonSerialized]
             public Action<GameObject> callback;
+            public bool enabled = true;
         }
 
         public TileAction[] actions;

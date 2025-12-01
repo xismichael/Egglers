@@ -6,19 +6,15 @@ namespace Egglers
     public class PollutionManager : MonoBehaviour
     {
         public static PollutionManager Instance { get; private set; }
-
-
-        public List<PollutionSource> pollutionSources = new List<PollutionSource>();
-
-
-        //gameGrid reference
-        public GridSystem gameGrid;
-        public int gridWidth;
-        public int gridHeight;
-
-
         //plantManager reference
         public PlantBitManager plantManager;
+
+        public List<PollutionSource> pollutionSources = new List<PollutionSource>();
+        //gameGrid reference
+        public GridSystem gameGrid;
+
+        int gridWidth;
+        int gridHeight;
 
 
         public void Initialize(GridSystem sharedGrid)
@@ -59,9 +55,9 @@ namespace Egglers
             foreach (var dir in directions)
             {
                 Vector2Int neighbor = pos + dir;
-                
+
                 // Check if in bounds
-                if (neighbor.x >= 0 && neighbor.x < gridWidth && 
+                if (neighbor.x >= 0 && neighbor.x < gridWidth &&
                     neighbor.y >= 0 && neighbor.y < gridHeight)
                 {
                     adjacentPositions.Add(neighbor);
@@ -76,7 +72,7 @@ namespace Egglers
 
             PollutionTile newTile = gameGrid.GetOrCreatePollutionTile(pos, spreadRate, strength, resistance);
             GridEvents.PollutionUpdated(pos);
-            
+
             return newTile;
         }
 
@@ -93,7 +89,7 @@ namespace Egglers
         {
             // Create new pollution source
             PollutionSource source = new PollutionSource(pos, spreadRate, strength, resistance, pulseRate, dormantDuration);
-            
+
             // Add to sources list
             pollutionSources.Add(source);
 
@@ -114,13 +110,13 @@ namespace Egglers
         {
             // Stop all coroutines
             StopAllCoroutines();
-            
+
             // Clear all data structures
             pollutionSources.Clear();
 
 
             //add further cleanup logic later
-            
+
         }
 
         // Helper functions for plant manager to interact with pollution
@@ -142,7 +138,7 @@ namespace Egglers
                     source.connectedTiles.Remove(pollutionTile);
                 }
                 pollutionTile.connectedSources.Clear();
-                
+
                 gameGrid.RemoveEntity(pollutionTile);
                 GridEvents.PollutionUpdated(new Vector2Int(x, y));
             }
@@ -154,7 +150,7 @@ namespace Egglers
                 RemoveSource(pollutionSource);
             }
 
-            
+
         }
 
         public void ReducePollutionAt(int x, int y, float percentage)
@@ -170,7 +166,7 @@ namespace Egglers
 
             // Freeze tile to prevent it from spreading/receiving while being reduced
             pollutionTile.isFrozen = true;
-            
+
             // Reduce by percentage
             float reductionFactor = 1f - (percentage / 100f);
             pollutionTile.pollutionSpreadRate *= reductionFactor;
@@ -241,7 +237,7 @@ namespace Egglers
                 source.timeSinceCreation += Time.deltaTime;
                 yield return null;
             }
-            
+
             // Continuously pulse at the source's rate
             while (pollutionSources.Contains(source))
             {

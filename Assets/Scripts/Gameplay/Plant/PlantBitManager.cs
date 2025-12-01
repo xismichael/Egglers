@@ -43,16 +43,27 @@ namespace Egglers
 
     public class PlantBitManager : MonoBehaviour
     {
+        public static PlantBitManager Instance { get; private set; }
+        void Awake()
+        {
+            if (Instance != null)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            Instance = this;
+        }
+
         [Tooltip("Plant bit data scriptable object")]
         [SerializeField] private PlantBitData plantBitData;
 
         [Tooltip("Plant bit data scriptable object for heart")]
         [SerializeField] private PlantBitData heartBitData;
 
-        [SerializeField] private Vector2Int startingHeartPos = Vector2Int.zero;
-        [SerializeField] public int gridWidth = 10;
-        [SerializeField] public int gridHeight = 10;
-        [SerializeField] private float tickDurationSeconds = 1.0f;
+        // [SerializeField] private Vector2Int startingHeartPos = Vector2Int.zero;
+        // [SerializeField] public int gridWidth = 10;
+        // [SerializeField] public int gridHeight = 10;
+        // [SerializeField] private float tickDurationSeconds = 1.0f;
         [SerializeField] private float startingEnergy = 10.0f;
         [SerializeField] private float startingMaxEnergy = 100.0f;
 
@@ -147,7 +158,7 @@ namespace Egglers
         public void AddMaxEnergy(float amount)
         {
             maxEnergy += amount;
-            Debug.Log($"[PlantBitManager] MaxEnergy increased by {amount} → {maxEnergy}");
+            // Debug.Log($"[PlantBitManager] MaxEnergy increased by {amount} → {maxEnergy}");
         }
 
         public void RemoveMaxEnergy(float amount)

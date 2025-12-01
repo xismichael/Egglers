@@ -59,23 +59,29 @@ public class GridManager : MonoBehaviour
 
         tiles = new GameObject[width, height];
 
+        // Precompute total grid dimensions
+        float totalWidth = (width - 1) * (tileSize + spacing);
+        float totalHeight = (height - 1) * (tileSize + spacing);
+
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
             {
-                float posX = x * (tileSize + spacing);
-                float posZ = y * (tileSize + spacing);
+                // Center tiles around (0,0)
+                float posX = x * (tileSize + spacing) - totalWidth / 2f;
+                float posZ = y * (tileSize + spacing) - totalHeight / 2f;
                 Vector3 position = new Vector3(posX, 0, posZ);
 
 #if UNITY_EDITOR
                 GameObject tile = (GameObject)PrefabUtility.InstantiatePrefab(tilePrefab, transform);
                 tile.transform.localPosition = position;
 #else
-                GameObject tile = Instantiate(tilePrefab, position, Quaternion.identity, transform);
+            GameObject tile = Instantiate(tilePrefab, position, Quaternion.identity, transform);
 #endif
                 tile.name = $"Tile ({x},{y})";
                 tiles[x, y] = tile;
 
+                // Assign components
                 GridVisualTile visualTile = tile.GetComponent<GridVisualTile>();
                 if (visualTile != null)
                 {
@@ -95,10 +101,8 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        // Center the grid
-        float totalWidth = (width - 1) * (tileSize + spacing);
-        float totalHeight = (height - 1) * (tileSize + spacing);
-        transform.localPosition = new Vector3(-totalWidth / 2f, 0, -totalHeight / 2f);
+        // Parent remains at 0,0,0
+        transform.localPosition = Vector3.zero;
     }
 
 
