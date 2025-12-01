@@ -24,8 +24,12 @@ namespace Egglers
         public void Initialize(GridSystem sharedGrid)
         {
             gameGrid = sharedGrid;
-            gridWidth = gameGrid.Width;
-            gridHeight = gameGrid.Height;
+        }
+
+        public void InitializeGridSize(int width, int height)
+        {
+            gridWidth = width;
+            gridHeight = height;
         }
 
         void Awake()

@@ -46,6 +46,8 @@ namespace Egglers
             {
                 return;
             }
+
+        
             
             // Take snapshot of tiles before the pulse, so new tiles dont spread yet
             List<PollutionTile> tilesBeforePulse = new List<PollutionTile>(connectedTiles);
@@ -61,6 +63,8 @@ namespace Egglers
             float emitStrength = pollutionStrength * 0.1f;
             float emitResistance = pollutionResistance * 0.1f;
             float totalEmit = emitSpreadRate + emitStrength + emitResistance;
+
+            
             
             foreach (Vector2Int neighborPos in adjacentPositions)
             {

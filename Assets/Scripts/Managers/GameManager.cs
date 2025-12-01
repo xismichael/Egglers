@@ -90,6 +90,9 @@ namespace Egglers
                 );
             }
 
+            // Initialize grid size
+            pollutionManager.InitializeGridSize(gridWidth, gridHeight);
+
             // Start heart placement mode
             gameState = GameState.HeartPlacement;
             Debug.Log("Place the Heart to begin the game!");
