@@ -22,6 +22,12 @@ namespace Egglers
 
         [Header("Billboard / Pollution")]
         public TMP_Text tmp;
+        [SerializeField] private PollutionParticles pollutionParticles;
+
+        private const float SpreadNormalization = 75f;
+        private const float StrengthNormalization = 75f;
+        private const float ResistanceNormalization = 75f;
+
 
         [Header("Grid Info")]
         public Vector2Int coords;
@@ -61,6 +67,43 @@ namespace Egglers
 
             if (tmp != null)
                 tmp.text = level.ToString("0.00");
+
+            float spreadRate = 0f;
+            float strength = 0f;
+            float resistance = 0f;
+
+            if (tile != null)
+            {
+                spreadRate = tile.pollutionSpreadRate;
+                strength = tile.pollutionStrength;
+                resistance = tile.pollutionResistance;
+            }
+            else if (source != null)
+            {
+                spreadRate = source.pollutionSpreadRate;
+                strength = source.pollutionStrength;
+                resistance = source.pollutionResistance;
+            }
+
+            if (pollutionParticles != null)
+            {
+                if (level <= 0.01f)
+                {
+                    pollutionParticles.DisableVisuals();
+                }
+                else
+                {
+                    pollutionParticles.EnableVisuals();
+
+                    float spreadIntensity = Mathf.Clamp01(spreadRate / SpreadNormalization);
+                    float strengthIntensity = Mathf.Clamp01(strength / StrengthNormalization);
+                    float resistanceIntensity = Mathf.Clamp01(resistance / ResistanceNormalization);
+
+                    pollutionParticles.SetResistanceIntensity(resistanceIntensity);
+                    pollutionParticles.SetAttackIntensity(strengthIntensity);
+                    pollutionParticles.SetSpreadIntensity(spreadIntensity);
+                }
+            }
         }
 
         #endregion

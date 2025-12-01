@@ -11,7 +11,7 @@ namespace Egglers
         public float pollutionStrength; // the attack damage of the tile
         public float pollutionResistance; // how quick for the plant to consume the pollution
 
-        private float minSpreadAmmount = 5.0f;
+        private float minSpreadAmmount = 1.0f;
         
         public bool isFrozen; // if true, cannot b added to or spread
         
