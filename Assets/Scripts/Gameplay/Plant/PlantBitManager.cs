@@ -155,6 +155,15 @@ namespace Egglers
             GridEvents.PlantUpdated(plantBit.position);
         }
 
+        public void NipPlantBit(PlantBit plantBit)
+        {
+            if (plantBit == null) return;
+
+            Debug.Log($"[PlantBitManager] NipPlantBit called at {plantBit.position}");
+
+            plantBit.Nip();
+        }
+
         public void AddMaxEnergy(float amount)
         {
             maxEnergy += amount;

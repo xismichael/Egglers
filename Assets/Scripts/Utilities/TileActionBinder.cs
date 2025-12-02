@@ -42,6 +42,7 @@ namespace Egglers
                 TileActionType.PlaceHeart => PlaceHeart,
                 TileActionType.Debug => DebugTile,
                 TileActionType.NipBud => NipBud,
+                TileActionType.ApplyGraft => ApplyGraft,
                 _ => null
             };
         }
@@ -145,22 +146,29 @@ namespace Egglers
                 return;
             }
 
-            if (plant.isHeart)
-            {
-                Debug.LogWarning("[NipBud] Cannot nip the heart!");
-                return;
-            }
-
-            float refund = plant.sproutCost * 0.5f;
-
-            Debug.Log($"[NipBud] Killing plant at {plant.position}, refunding {refund} energy");
-
-            plantBitManager.KillPlantBit(plant);
-            plantBitManager.AddEnergy(refund);
+            plantBitManager.NipPlantBit(plant);
 
             GridEvents.PlantUpdated(plant.position);
         }
 
+        private void ApplyGraft(GameObject tile)
+        {
+            if (tile == null || plantBitManager == null) return;
+
+            GridVisualTile visual = tile.GetComponent<GridVisualTile>();
+            if (visual == null) return;
+
+            PlantBit plant = plantBitManager.gameGrid.GetEntity<PlantBit>(visual.coords);
+            if (plant == null)
+            {
+                Debug.Log("[ApplyGraft] No plant on this tile.");
+                return;
+            }
+
+            plantBitManager.ApplyGraftAtPosition(plant.position);
+
+            GridEvents.PlantUpdated(plant.position);
+        }
 
         private void PlaceHeart(GameObject tile)
         {
