@@ -13,6 +13,7 @@ namespace Egglers
         Debug,
         NipBud,
         ApplyGraft,
+        RemoveGraft,
     }
 
     public class TileActions : MonoBehaviour

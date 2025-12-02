@@ -100,6 +100,8 @@ namespace Egglers
         void ShowContextMenu(Vector2 screenPos, GameObject tile)
         {
             selectedTile = tile;
+            CameraManager.Instance.PanToTarget(selectedTile.transform.position);
+            CameraManager.Instance.ZoomToTarget(0.2f);
             contextMenuPanel.gameObject.SetActive(true);
             highlightManager.SetSelectedTile(tile);
             highlightManager.SetContextMenuOpen(true);

@@ -31,6 +31,8 @@ namespace Egglers
         [Header("Pollution Sources Setup")]
         public List<SourceSetup> sourcesSetup = new List<SourceSetup>();
 
+        public GameObject focusedTile;
+
         // UI Events
         public System.Action OnGameWon;
         public System.Action OnGameLost;

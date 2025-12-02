@@ -296,20 +296,43 @@ namespace Egglers
         {
             Debug.Log($"[PlantBit] RemoveGraft at {position} | L:{leaf} R:{root} F:{fruit}");
 
-            if (graftingCooldown > 0) return;
+            if (phase == PlantBitPhase.Bud)
+            {
+                Debug.LogWarning("Cannot remove graft, plant is still a bud");
+                return;
+            }
 
-            if (leaf > graftedLeafCount || root > graftedRootCount || fruit > graftedFruitCount) return;
+            if (graftingCooldown > 0)
+            {
+                Debug.LogWarning("Cannot remove graft, plant is on grafting cooldown");
+                return;
+            }
 
-            float removalCost = (leaf + root + fruit) * data.removalCostPerComponent;
-            if (!plantManager.RemoveEnergy(removalCost)) return;
+            // Check if plant has enough grafts to remove
+            if (leaf > (leafCount + graftedLeafCount) || root > (rootCount + graftedRootCount) || fruit > (fruitCount + graftedFruitCount))
+            {
+                Debug.LogWarning("Cannot remove graft, trying to remove more grafts than available");
+                return;
+            }
+
+            // Cost to remove
+            int totalRemoved = leaf + root + fruit;
+            float removalCost = totalRemoved * data.removalCostPerComponent;
+            if (!plantManager.RemoveEnergy(removalCost))
+            {
+                Debug.LogWarning("Cannot remove graft, not enough resources to remove components");
+                return;
+            }
 
             plantManager.graftBuffer.Update(leaf, root, fruit);
 
+            // Remove from plant
             graftedLeafCount -= leaf;
             graftedRootCount -= root;
             graftedFruitCount -= fruit;
             UpdateStats();
 
+            // Start cooldown
             graftingCooldown = data.graftCooldownDuration;
         }
 
@@ -317,12 +340,32 @@ namespace Egglers
         {
             Debug.Log($"[PlantBit] ApplyGraft at {position} | Graft: L{graft.leafCount} R{graft.rootCount} F{graft.fruitCount}");
 
-            if (graftingCooldown > 0) return;
+            if (phase == PlantBitPhase.Bud)
+            {
+                Debug.LogWarning("Cannot apply graft, plant is still a bud");
+                return;
+            }
 
-            if (TotalComponents + graft.TotalComponents > maxComponentCount) return;
+            if (graftingCooldown > 0)
+            {
+                Debug.LogWarning("Cannot apply graft, plant is on grafting cooldown");
+                return;
+            }
+
+            // Check capacity
+            int newTotal = TotalComponents + graft.TotalComponents;
+            if (newTotal > maxComponentCount)
+            {
+                Debug.LogWarning("Cannot apply graft, would exceed plant's max component capacity");
+                return;
+            }
 
             float cost = data.baseGraftCost * (1 + TotalComponents * data.graftCostScaling);
-            if (!plantManager.RemoveEnergy(cost)) return;
+            if (!plantManager.RemoveEnergy(cost))
+            {
+                Debug.LogWarning("Cannot apply graft, not enough resources");
+                return;
+            }
 
             graftedLeafCount += graft.leafCount;
             graftedRootCount += graft.rootCount;

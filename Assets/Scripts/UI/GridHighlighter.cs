@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Egglers;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -74,19 +75,7 @@ public class GridHighlighter : MonoBehaviour
 
     bool IsPointerOverBlockingUI()
     {
-        PointerEventData pointerData = new PointerEventData(EventSystem.current)
-        {
-            position = Mouse.current.position.ReadValue()
-        };
-        List<RaycastResult> results = new List<RaycastResult>();
-        EventSystem.current.RaycastAll(pointerData, results);
-
-        foreach (var r in results)
-        {
-            if (r.gameObject.CompareTag("ContextMenu")) // tag your UI that should block hover
-                return true;
-        }
-        return false;
+        return UIManager.Instance.UIRaycast(Mouse.current.position.ReadValue());
     }
     // --------------------------
     // decide per-tile targets

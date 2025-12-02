@@ -1,13 +1,15 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace Egglers
 {
     public enum GameMenuID
     {
-        Main,
         HUD,
-        Options,
-        GameOver,
+        TileMenu,
+        GraftMenu,
     }
 
     /// <summary>
@@ -16,10 +18,14 @@ namespace Egglers
     /// </summary>
     public class UIManager : MonoBehaviour
     {
-
+        [Header("Menus")]
         [SerializeField] private GameMenu[] Menus; // Array of game menus to be set in inspector from scene
         [SerializeField] private GameMenuID startingMenuID;
         [SerializeField] private GameMenuID currentMenuID;
+        
+        [Header("Scene")]
+        [SerializeField] private Canvas mainCanvas;
+        [SerializeField] private EventSystem eventSystem;
 
         // Singleton implementation
         private static UIManager _instance;
@@ -48,6 +54,7 @@ namespace Egglers
                     Debug.LogError("No menu found on " + menu.name);
                 }
 
+                Debug.Log("Attempting to close " + menu.name);
                 menu.CloseMenu();
             }
 
@@ -68,11 +75,9 @@ namespace Egglers
 
         public void GoToMenu(GameMenuID menuID)
         {
-
-            // Debug.Log($"Attempting to go to menu ID ({menuID}) from current menu ID ({currentMenuID})");
             if (currentMenuID == menuID)
             {
-                Debug.LogWarning("Cannot move to menu ID (" + menuID + ") as we are currently on it");
+                Debug.Log("[UI Manager] Cannot move to menu ID (" + menuID + ") as we are currently on it");
             }
             else
             {
@@ -93,6 +98,26 @@ namespace Egglers
             // Debug.Log($"[UI Manager] Setting cursor to: {state}");
             Cursor.visible = state;
             Cursor.lockState = state ? CursorLockMode.None : CursorLockMode.Locked;
+        }
+
+        public bool UIRaycast(Vector2 mousePos)
+        {
+            PointerEventData pointerData = new PointerEventData(eventSystem);
+            pointerData.position = mousePos;
+
+            List<RaycastResult> results = new List<RaycastResult>();
+            
+            if (!Menus[(int)currentMenuID].gameObject.TryGetComponent<GraphicRaycaster>(out var raycaster)) return false;
+
+            raycaster.Raycast(pointerData, results);
+
+            foreach (RaycastResult result in results)
+            {
+                // Debug.Log("[UI Manager] Hit UI element: " + result.gameObject.name);
+                return true;
+            }
+
+            return false;
         }
     }
 }
