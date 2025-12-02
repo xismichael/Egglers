@@ -75,6 +75,12 @@ namespace Egglers
         [Tooltip("Amount of energy spent for a bud to grow one tick")]
         public int tickGrowthCost = 10;
 
+
+        [Header("Nipping")]
+
+        [Tooltip("Percent of sprouting cost refunded for nipping a bud")]
+        public float nippingRefundFraction = 0.5f;
+
         // [Header("Tick Rates")]
         // [Tooltip("How often plants update (in seconds)")]
         // public float plantTickRate = 0.5f;

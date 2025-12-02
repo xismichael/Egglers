@@ -11,7 +11,8 @@ namespace Egglers
         Billboard,
         PlaceHeart,
         Debug,
-        NipBud
+        NipBud,
+        ApplyGraft,
     }
 
     public class TileActions : MonoBehaviour

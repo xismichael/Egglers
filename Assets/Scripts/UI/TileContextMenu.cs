@@ -158,6 +158,7 @@ namespace Egglers
             {
                 TileActionType.PlaceHeart => "Place the heart here.",
                 TileActionType.NipBud => "Nip a bud to gain energy.",
+                TileActionType.ApplyGraft => "Apply stored graft.",
                 TileActionType.Plant1 => "Select Plant 1.",
                 TileActionType.Plant2 => "Select Plant 2.",
                 TileActionType.Plant3 => "Select Plant 3.",

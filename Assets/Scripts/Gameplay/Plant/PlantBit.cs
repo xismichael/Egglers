@@ -333,5 +333,21 @@ namespace Egglers
 
             graftingCooldown = data.graftCooldownDuration;
         }
+
+        public void Nip()
+        {
+            if (isHeart)
+            {
+                Debug.LogWarning("[PlantBit] Cannot nip the heart!");
+                return;
+            }
+
+            float refund = sproutCost * 0.5f;
+
+            Debug.Log($"[PlantBit] Killing plant at {position}, refunding {refund} energy");
+
+            plantManager.AddEnergy(refund);
+            plantManager.KillPlantBit(this);
+        }
     }
 }
