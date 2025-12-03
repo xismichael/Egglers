@@ -43,6 +43,7 @@ namespace Egglers
                 TileActionType.Debug => DebugTile,
                 TileActionType.NipBud => NipBud,
                 TileActionType.ApplyGraft => ApplyGraft,
+                TileActionType.RemoveGraft => RemoveGraft,
                 _ => null
             };
         }
@@ -167,6 +168,24 @@ namespace Egglers
 
             plantBitManager.ApplyGraftAtPosition(plant.position);
 
+            GridEvents.PlantUpdated(plant.position);
+        }
+
+        private void RemoveGraft(GameObject tile)
+        {
+            if (tile == null || plantBitManager == null) return;
+
+            GridVisualTile visual = tile.GetComponent<GridVisualTile>();
+            if (visual == null) return;
+
+            PlantBit plant = plantBitManager.gameGrid.GetEntity<PlantBit>(visual.coords);
+            if (plant == null)
+            {
+                Debug.Log("[RemoveGraft] No plant on this tile.");
+                return;
+            }
+
+            plantBitManager.RemoveGraftAtPosition(plant.position);
             GridEvents.PlantUpdated(plant.position);
         }
 

@@ -1,11 +1,12 @@
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace Egglers
 {   
+    /// <summary>
+    /// HUD with stats should go here eventually
+    /// </summary>
     public class HUD : GameMenu
     {
-
         protected override void InnerAwake()
         {
             base.InnerAwake();
@@ -14,15 +15,7 @@ namespace Egglers
         public override void OpenMenu()
         {
             UIManager.Instance.SetCursorVisible(true);
-            // GameManager.Instance.SetGamePaused(true);
             base.OpenMenu();
-        }
-
-
-        
-        private void OnDestroy()
-        {
         }
     }
 }
-

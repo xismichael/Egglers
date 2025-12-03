@@ -83,6 +83,7 @@ namespace Egglers
 
         // Grafting
         public GraftBuffer graftBuffer;
+        public GraftBuffer stashedGraftBuffer; // Used by UI manager to bypass tile actions
 
         public PollutionManager pollutionManager;
 
@@ -94,6 +95,7 @@ namespace Egglers
             Debug.Log("[PlantBitManager] Initializing manager with shared grid");
             gameGrid = sharedGrid;
             graftBuffer = new GraftBuffer(0, 0, 0, false);
+            stashedGraftBuffer = new GraftBuffer(0, 0, 0, false);
         }
 
         public void InitializeHeart(Vector2Int pos)
@@ -212,9 +214,9 @@ namespace Egglers
             GridEvents.PlantUpdated(pos);
         }
 
-        public void RemoveGraftAtPosition(Vector2Int pos, int leaf, int root, int fruit)
+        public void RemoveGraftAtPosition(Vector2Int pos, int leaf = 0, int root = 0, int fruit = 0)
         {
-            Debug.Log($"[PlantBitManager] RemoveGraftAtPosition {pos} → L:{leaf} R:{root} F:{fruit}");
+            Debug.Log($"[PlantBitManager] RemoveGraftAtPosition {pos}");
 
             PlantBit plantBit = gameGrid.GetEntity<PlantBit>(pos);
             if (plantBit == null)
@@ -223,7 +225,17 @@ namespace Egglers
                 return;
             }
 
-            plantBit.RemoveGraft(leaf, root, fruit);
+            // The stashed buffer was added so I could call it from the UI manager since I could not pass in the data through tile actions
+            if (leaf + root + fruit <= 0)
+            {
+                plantBit.RemoveGraft(stashedGraftBuffer.leafCount, stashedGraftBuffer.rootCount, stashedGraftBuffer.fruitCount);
+                stashedGraftBuffer.Clear();
+            }
+            else
+            {
+                plantBit.RemoveGraft(leaf, root, fruit);
+            }
+            
             GridEvents.PlantUpdated(pos);
         }
 
@@ -232,6 +244,11 @@ namespace Egglers
             float lvl = pollutionManager?.GetPollutionLevelAt(pos) ?? 0f;
             Debug.Log($"[PlantBitManager] GetPollutionAtTile {pos} → {lvl}");
             return lvl;
+        }
+
+        public void StashGraftData(int leaf, int root, int fruit)
+        {
+            stashedGraftBuffer.Update(leaf, root, fruit);
         }
     }
 }

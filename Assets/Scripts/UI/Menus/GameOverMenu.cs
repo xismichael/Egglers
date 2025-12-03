@@ -11,7 +11,7 @@ namespace Egglers
     /// See the base class for all the overrideable functions
     /// ALSO DONT FORGET TO SET THE MENUS IN THE UI MANAGER IN THE EDITOR BASED ON THE ORDER IN THE MANAGER SCRIPT
     /// </summary>
-    public class GameWin : GameMenu
+    public class GameOverMenu : GameMenu
     {
         // Set buttons in editor
     //     [SerializeField] private Button startButton;

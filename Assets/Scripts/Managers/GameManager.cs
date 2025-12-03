@@ -32,6 +32,8 @@ namespace Egglers
         [Header("Pollution Sources Setup")]
         public List<SourceSetup> sourcesSetup = new List<SourceSetup>();
 
+        public GameObject focusedTile;
+
         // UI Events
         public System.Action OnGameWon;
         public System.Action OnGameLost;
@@ -171,7 +173,7 @@ namespace Egglers
                 gameState = GameState.Won;
                 StopGameLoops();
                 Debug.Log("Victory! All pollution sources destroyed!");
-                uiManager.GoToMenu(GameMenuID.GameWin);
+                uiManager.GoToMenu(GameMenuID.GameOver);
             }
         }
 
@@ -182,7 +184,7 @@ namespace Egglers
                 gameState = GameState.Lost;
                 StopGameLoops();
                 Debug.Log("Defeat! The Heart has been overwhelmed by pollution!");
-                uiManager.GoToMenu(GameMenuID.GameLoose);
+                uiManager.GoToMenu(GameMenuID.GameOver);
             }
         }
 
