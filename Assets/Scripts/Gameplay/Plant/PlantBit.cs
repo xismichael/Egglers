@@ -191,6 +191,8 @@ namespace Egglers
 
         public void TickUpdate()
         {
+            ExtractEnergy();
+
             if (phase == PlantBitPhase.Bud)
             {
                 // Debug.Log($"[PlantBit] TickUpdate BUD at {position} | progress: {growthProgress}/{data.fullGrowthTicks}");
@@ -208,7 +210,6 @@ namespace Egglers
             else if (phase == PlantBitPhase.Grown)
             {
                 // Debug.Log($"[PlantBit] TickUpdate GROWN at {position}");
-                ExtractEnergy();
 
                 if (graftingCooldown > 0)
                 {
@@ -232,39 +233,51 @@ namespace Egglers
 
         public void ExtractEnergy()
         {
-            GridSystem grid = plantManager.gameGrid;
+            // Extract on the neighboring tiles and the tile the plant bit is on
+            List<Vector2Int> extractTiles = plantManager.gameGrid.GetNeighbors(position);
+            extractTiles.Add(position);
 
-            // Check for PollutionTile
-            PollutionTile pollutionTile = grid.GetEntity<PollutionTile>(position);
-            float totalPollution = 0f;
+            // Debug.Log($"[PlantBit] Attempting to extract for plant bit at {position}");
 
-            if (pollutionTile != null)
-                totalPollution += pollutionTile.GetTotalPollution();
-
-            // Check for PollutionSource
-            PollutionSource pollutionSource = grid.GetEntity<PollutionSource>(position);
-            if (pollutionSource != null)
-                totalPollution += pollutionSource.GetTotalPollution();
-
-            if (totalPollution <= 0f)
+            foreach (Vector2Int extractPos in extractTiles)
             {
-                // Debug.Log($"[PlantBit] Pollution already depleted at {position}");
-                return;
+
+                // Debug.Log($"[PlantBit] Attempting to extract at {extractPos}");
+
+                float totalPollution = 0f;
+
+                // Check for PollutionTile
+                PollutionTile pollutionTile = plantManager.gameGrid.GetEntity<PollutionTile>(extractPos);
+                if (pollutionTile != null)
+                    totalPollution += pollutionTile.GetTotalPollution();
+
+                // Check for PollutionSource
+                PollutionSource pollutionSource = plantManager.gameGrid.GetEntity<PollutionSource>(extractPos);
+                if (pollutionSource != null)
+                    totalPollution += pollutionSource.GetTotalPollution();
+
+                if (totalPollution <= 0f)
+                {
+                    // Debug.Log($"[PlantBit] Pollution already depleted at {extractPos}");
+                    continue;
+                }
+
+                // Determine energy to extract
+                float targetExtract = extractionRate * data.extractionPollutionFactor;
+                if (phase == PlantBitPhase.Bud) targetExtract *= data.budExtractionFactor;
+                float energyGain = Mathf.Min(targetExtract, totalPollution);
+                // Debug.Log($"[PlantBit] Extracting {energyGain} energy at {extractPos} (total pollution: {totalPollution})");
+
+                // Apply damage proportionally
+                if (pollutionTile != null)
+                    pollutionTile.TakeDamage(energyGain);
+
+                if (pollutionSource != null)
+                    pollutionSource.TakeDamage(energyGain);
+
+                // Give energy to plant manager
+                plantManager.AddEnergy(energyGain);
             }
-
-            // Determine energy to extract
-            float energyGain = Mathf.Min(extractionRate, totalPollution);
-            // Debug.Log($"[PlantBit] Extracting {energyGain} energy at {position} (total pollution: {totalPollution})");
-
-            // Apply damage proportionally
-            if (pollutionTile != null)
-                pollutionTile.TakeDamage(energyGain);
-
-            if (pollutionSource != null)
-                pollutionSource.TakeDamage(energyGain);
-
-            // Give energy to plant manager
-            plantManager.AddEnergy(energyGain);
         }
 
         public void Kill()
