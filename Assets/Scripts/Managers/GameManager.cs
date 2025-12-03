@@ -12,6 +12,7 @@ namespace Egglers
         [Header("Managers")]
         public PlantBitManager plantManager;
         public PollutionManager pollutionManager;
+        public UIManager uiManager;
 
         [Header("Game State")]
         public GameState gameState = GameState.HeartPlacement;
@@ -170,6 +171,7 @@ namespace Egglers
                 gameState = GameState.Won;
                 StopGameLoops();
                 Debug.Log("Victory! All pollution sources destroyed!");
+                uiManager.GoToMenu(GameMenuID.GameWin);
             }
         }
 
@@ -180,6 +182,7 @@ namespace Egglers
                 gameState = GameState.Lost;
                 StopGameLoops();
                 Debug.Log("Defeat! The Heart has been overwhelmed by pollution!");
+                uiManager.GoToMenu(GameMenuID.GameLoose);
             }
         }
 

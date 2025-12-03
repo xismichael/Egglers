@@ -5,9 +5,10 @@ namespace Egglers
     public enum GameMenuID
     {
         Main,
+        Credits,
         HUD,
-        Options,
-        GameOver,
+        GameWin,
+        GameLoose,
     }
 
     /// <summary>
@@ -63,6 +64,7 @@ namespace Egglers
         private bool OpenMenu(GameMenuID menuID)
         {
             Menus[(int) menuID].OpenMenu();
+            Debug.Log($"[UI Manager] Opened menu ID: {menuID}");
             return true;
         }
 
