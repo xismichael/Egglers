@@ -22,6 +22,8 @@ namespace Egglers
         [SerializeField] private GameMenuID startingMenuID;
         [SerializeField] private GameMenuID currentMenuID;
 
+        [SerializeField] public GameObject GameCanvas;
+
         // Singleton implementation
         private static UIManager _instance;
         public static UIManager Instance { get { return _instance; } }
@@ -57,13 +59,13 @@ namespace Egglers
 
         private bool CloseMenu(GameMenuID menuID)
         {
-            Menus[(int) menuID].CloseMenu();
+            Menus[(int)menuID].CloseMenu();
             return true;
         }
 
         private bool OpenMenu(GameMenuID menuID)
         {
-            Menus[(int) menuID].OpenMenu();
+            Menus[(int)menuID].OpenMenu();
             Debug.Log($"[UI Manager] Opened menu ID: {menuID}");
             return true;
         }
@@ -89,7 +91,7 @@ namespace Egglers
         {
             Menus[(int)menuID].isDirty = true;
         }
-        
+
         public void SetCursorVisible(bool state)
         {
             // Debug.Log($"[UI Manager] Setting cursor to: {state}");

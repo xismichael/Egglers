@@ -1029,6 +1029,7 @@ MonoBehaviour:
   - {fileID: 1646871647}
   startingMenuID: 0
   currentMenuID: 0
+  GameCanvas: {fileID: 2143704273}
 --- !u!4 &121423701 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8014701665589887379, guid: 786c2f07d6b23634087189c216ba193c, type: 3}
@@ -4214,7 +4215,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlantPollutionGame.GameManager
   plantManager: {fileID: 595526088}
   pollutionManager: {fileID: 1602547428}
-  uiManager: {fileID: 0}
+  uiManager: {fileID: 115253261}
   gameState: 0
   gridWidth: 10
   gridHeight: 10
@@ -17100,7 +17101,7 @@ GameObject:
   - component: {fileID: 2143704275}
   - component: {fileID: 2143704274}
   m_Layer: 5
-  m_Name: Canvas
+  m_Name: GameCanvas
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -17386,7 +17387,7 @@ SceneRoots:
   - {fileID: 410087041}
   - {fileID: 832575519}
   - {fileID: 519588067}
+  - {fileID: 302937423}
   - {fileID: 2143704277}
   - {fileID: 1758763994}
-  - {fileID: 302937423}
   - {fileID: 589237014}

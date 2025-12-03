@@ -42,8 +42,15 @@ namespace Egglers
                 return false;
 
             Vector2 mousePos = Mouse.current.position.ReadValue();
+
+            Canvas rootCanvas = contextMenuPanel.GetComponentInParent<Canvas>();
+            Camera cam = rootCanvas.renderMode == RenderMode.ScreenSpaceOverlay
+                ? null
+                : rootCanvas.worldCamera;
+
             return RectTransformUtility.RectangleContainsScreenPoint(
-                contextMenuPanel, mousePos, canvas.worldCamera);
+                contextMenuPanel, mousePos, cam
+            );
         }
 
         void HandleClick()
