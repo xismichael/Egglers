@@ -161,7 +161,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 1
+  m_PresetInfoIsWorld: 0
 --- !u!114 &4373228571584755219
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -207,7 +207,13 @@ MonoBehaviour:
   fadeDuration: 0.3
   energyText: {fileID: 0}
   energyBarLength: 10
-  graftBufferText: {fileID: 0}
   pollutionSourcesText: {fileID: 0}
-  pollutionBarLength: 10
   gameStateText: {fileID: 0}
+  plantPhaseText: {fileID: 0}
+  plantLeafText: {fileID: 0}
+  plantRootText: {fileID: 0}
+  plantFruitText: {fileID: 0}
+  pollutionTypeText: {fileID: 0}
+  pollutionSpreadText: {fileID: 0}
+  pollutionStrengthText: {fileID: 0}
+  pollutionResistanceText: {fileID: 0}

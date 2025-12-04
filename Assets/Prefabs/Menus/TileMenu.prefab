@@ -243,7 +243,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 0
+  m_PresetInfoIsWorld: 1
 --- !u!114 &9020546754869339924
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -286,6 +286,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Egglers.TileMenu
   isDirty: 0
+  fadeDuration: 0.3
   highlightManager: {fileID: 0}
   placeHeartButton: {fileID: 3403990800662177661}
   nipBudButton: {fileID: 5111377601594521470}
