@@ -115,13 +115,28 @@ namespace Egglers
             {
                 ButtonActions.PlaceHeart => "Place the heart here",
                 ButtonActions.NipBud => "Nip a bud to gain energy",
-                ButtonActions.ApplyGraft => "Apply stored graft",
+                ButtonActions.ApplyGraft => GetApplyGraftTooltip(),
                 ButtonActions.RemoveGraft => "Remove graft",
                 ButtonActions.Debug => "Debug this tile",
                 ButtonActions.CloseMenu => "Close menu",
                 ButtonActions.None => "",
                 _ => ""
             };
+        }
+
+        string GetApplyGraftTooltip()
+        {
+            if (PlantBitManager.Instance == null)
+                return "Apply stored graft";
+
+            GraftBuffer buffer = PlantBitManager.Instance.graftBuffer;
+            
+            if (!buffer.hasContent)
+            {
+                return "Nothing to graft";
+            }
+
+            return $"Apply graft: Leaf:{buffer.leafCount} Root:{buffer.rootCount} Fruit:{buffer.fruitCount}";
         }
 
         private void OnPlaceHeartClicked()
