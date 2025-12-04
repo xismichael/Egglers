@@ -68,6 +68,7 @@ namespace Egglers
                     // Skip if the plant bit's attack damage is greater than or equal to the pollution strength
                     if (neighborPlantBit.attackDamage >= pollutionStrength) continue;
                     PollutionManager.Instance.plantManager.KillPlantBit(neighborPlantBit);
+                    GridEvents.PlantKilledByPollution(neighborPlantBit.position);
                 }
 
                 

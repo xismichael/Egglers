@@ -2572,8 +2572,14 @@ MonoBehaviour:
   sourcesSetup:
   - position: {x: 3, y: 3}
     spreadRate: 6
+    strength: 6
+    resistance: 50
+    pulseRate: 1
+    dormantDuration: 1
+  - position: {x: 6, y: 6}
+    spreadRate: 6
     strength: 50
-    resistance: 4
+    resistance: 0
     pulseRate: 1
     dormantDuration: 1
   focusedTile: {fileID: 0}

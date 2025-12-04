@@ -101,7 +101,9 @@ namespace Egglers
                     sourceSetup.pulseRate,
                     sourceSetup.dormantDuration
                 );
+                GridEvents.PollutionUpdated(sourceSetup.position);
             }
+
 
 
             // Start heart placement mode

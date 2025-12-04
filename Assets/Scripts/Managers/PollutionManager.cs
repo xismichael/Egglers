@@ -231,12 +231,14 @@ namespace Egglers
 
         System.Collections.IEnumerator SourcePulseCoroutine(PollutionSource source)
         {
+            GridEvents.PollutionUpdated(source.position);
             // Wait for dormant period
             while (source.timeSinceCreation < source.dormantDuration)
             {
                 source.timeSinceCreation += Time.deltaTime;
                 yield return null;
             }
+            GridEvents.PollutionUpdated(source.position);
 
             // Continuously pulse at the source's rate
             while (pollutionSources.Contains(source))

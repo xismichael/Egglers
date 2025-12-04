@@ -1,84 +1,154 @@
+using System.Collections;
 using UnityEngine;
 
 namespace Egglers
 {
-    /// <summary>
-    /// Simple controller that adjusts particle emission/size/lifetime for pollution stats.
-    /// </summary>
     public class PollutionParticles : MonoBehaviour
     {
-        [Header("Particle Systems")]
         [SerializeField] private ParticleSystem resistanceSystem;
         [SerializeField] private ParticleSystem attackSystem;
         [SerializeField] private ParticleSystem spreadSystem;
+        [SerializeField] private float activeDuration = 1.5f;
 
-        private ParticleSystem.EmissionModule resistanceEmission;
-        private ParticleSystem.EmissionModule attackEmission;
-        private ParticleSystem.EmissionModule spreadEmission;
+        [Header("Emission multipliers")]
+        [SerializeField] private float resistanceEmissionMultiplier = 2f;
+        [SerializeField] private float attackEmissionMultiplier = 8f;
+        [SerializeField] private float spreadEmissionMultiplier = 3f;
 
-        private ParticleSystem.MainModule resistanceMain;
-        private ParticleSystem.MainModule attackMain;
-        private ParticleSystem.MainModule spreadMain;
+        [Header("Burst counts")]
+        [SerializeField] private int resistanceBurstCount = 10;
+        [SerializeField] private int attackBurstCount = 40;
+        [SerializeField] private int spreadBurstCount = 15;
 
-        void Awake()
+        private Coroutine playRoutine;
+        private ParticleSystem[] systems;
+        private float resistanceBaseRate;
+        private float attackBaseRate;
+        private float spreadBaseRate;
+
+        private void Awake()
         {
-            if (resistanceSystem != null)
+            systems = GetAvailableSystems();
+            CacheBaseEmissionRates();
+
+            foreach (var ps in systems)
             {
-                resistanceEmission = resistanceSystem.emission;
-                resistanceMain = resistanceSystem.main;
-            }
-            if (attackSystem != null)
-            {
-                attackEmission = attackSystem.emission;
-                attackMain = attackSystem.main;
-            }
-            if (spreadSystem != null)
-            {
-                spreadEmission = spreadSystem.emission;
-                spreadMain = spreadSystem.main;
-            }
-
-            DisableVisuals();
-        }
-
-        public void SetResistanceIntensity(float normalized)
-        {
-            normalized = Mathf.Clamp01(normalized);
-            resistanceEmission.rateOverTime = Mathf.Lerp(0f, 5f, normalized);
-            resistanceMain.startSize = Mathf.Lerp(1.0f, 1.5f, normalized);
-            resistanceMain.startLifetime = Mathf.Lerp(2.5f, 5.0f, normalized);
-        }
-
-        public void SetAttackIntensity(float normalized)
-        {
-            normalized = Mathf.Clamp01(normalized);
-            attackEmission.rateOverTime = Mathf.Lerp(0f, 30f, normalized);
-            attackMain.startSize = Mathf.Lerp(0.1f, 0.8f, normalized);
-            attackMain.startLifetime = Mathf.Lerp(0.6f, 2.2f, normalized);
-        }
-
-        public void SetSpreadIntensity(float normalized)
-        {
-            normalized = Mathf.Clamp01(normalized);
-            spreadEmission.rateOverTime = Mathf.Lerp(0f, 25f, normalized);
-            spreadMain.startSize = Mathf.Lerp(0.05f, 0.6f, normalized);
-            spreadMain.startLifetime = Mathf.Lerp(0.2f, 1.6f, normalized);
-        }
-
-        public void EnableVisuals()
-        {
-            if (!gameObject.activeSelf)
-            {
-                gameObject.SetActive(true);
+                if (ps == null) continue;
+                ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                ps.Clear();
             }
         }
 
-        public void DisableVisuals()
+        public void PlayOnce()
         {
-            if (gameObject.activeSelf)
+            systems = systems ?? GetAvailableSystems();
+            if (systems.Length == 0) return;
+
+            if (playRoutine != null)
             {
-                gameObject.SetActive(false);
+                StopCoroutine(playRoutine);
             }
+            playRoutine = StartCoroutine(PlayOnceRoutine());
+        }
+
+        private IEnumerator PlayOnceRoutine()
+        {
+            foreach (var ps in systems)
+            {
+                if (ps == null) continue;
+
+                ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                ps.Clear();
+                ApplyEmission(ps, true);
+                EmitBurst(ps);
+                ps.Play(true);
+            }
+
+            if (activeDuration > 0f)
+            {
+                yield return new WaitForSeconds(activeDuration);
+            }
+            else
+            {
+                yield return null;
+            }
+
+            foreach (var ps in systems)
+            {
+                if (ps == null) continue;
+
+                ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+                ApplyEmission(ps, false);
+            }
+
+            playRoutine = null;
+        }
+
+        private void ApplyEmission(ParticleSystem system, bool boosted)
+        {
+            if (system == null) return;
+
+            var emission = system.emission;
+            float baseRate = GetBaseRate(system);
+            float multiplier = boosted ? GetMultiplier(system) : 1f;
+            emission.rateOverTime = new ParticleSystem.MinMaxCurve(baseRate * multiplier);
+        }
+
+        private float GetMultiplier(ParticleSystem ps)
+        {
+            if (ps == attackSystem) return attackEmissionMultiplier;
+            if (ps == resistanceSystem) return resistanceEmissionMultiplier;
+            if (ps == spreadSystem) return spreadEmissionMultiplier;
+            return 1f;
+        }
+
+        private void EmitBurst(ParticleSystem ps)
+        {
+            int burst = GetBurstCount(ps);
+            if (ps != null && burst > 0)
+            {
+                ps.Emit(burst);
+            }
+        }
+
+        private int GetBurstCount(ParticleSystem ps)
+        {
+            if (ps == attackSystem) return attackBurstCount;
+            if (ps == resistanceSystem) return resistanceBurstCount;
+            if (ps == spreadSystem) return spreadBurstCount;
+            return 0;
+        }
+
+        private ParticleSystem[] GetAvailableSystems()
+        {
+            return new[]
+            {
+                resistanceSystem ?? transform.Find("Resistance")?.GetComponent<ParticleSystem>(),
+                attackSystem ?? transform.Find("Attack")?.GetComponent<ParticleSystem>(),
+                spreadSystem ?? transform.Find("Spread")?.GetComponent<ParticleSystem>()
+            };
+        }
+
+        private void CacheBaseEmissionRates()
+        {
+            resistanceBaseRate = GetCurrentRate(resistanceSystem);
+            attackBaseRate = GetCurrentRate(attackSystem);
+            spreadBaseRate = GetCurrentRate(spreadSystem);
+        }
+
+        private float GetCurrentRate(ParticleSystem ps)
+        {
+            if (ps == null) return 0f;
+            var emission = ps.emission;
+            return emission.rateOverTime.constant;
+        }
+
+        private float GetBaseRate(ParticleSystem ps)
+        {
+            if (ps == attackSystem) return attackBaseRate;
+            if (ps == resistanceSystem) return resistanceBaseRate;
+            if (ps == spreadSystem) return spreadBaseRate;
+            return 0f;
         }
     }
 }
