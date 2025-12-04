@@ -24,25 +24,55 @@ namespace Egglers
         [Header("Billboard / Pollution")]
         public TMP_Text tmp;
         [SerializeField] private PollutionParticles pollutionParticles;
+        [SerializeField] private GameObject pollutionSourceVisual;
+        [SerializeField] private GameObject pollutionSourceWaterVisual;
+        [SerializeField] private GameObject pollutionVisual;
+        [SerializeField] private Renderer pollutionRenderer;
+        [SerializeField] private Renderer pollutionSourceWaterRenderer;
+        [SerializeField] private Color pollutionBaseColor = Color.white;
+        [SerializeField] private Color pollutionVoroniColor = Color.white;
+        [SerializeField] private float colorIntensityMin = -7f;
+        [SerializeField] private float colorIntensityMax = 7f;
+        [SerializeField] private string baseColorProperty = "_BaseColor";
+        [SerializeField] private string voroniColorProperty = "_voroniColor";
 
         private const float SpreadNormalization = 75f;
         private const float StrengthNormalization = 75f;
         private const float ResistanceNormalization = 75f;
 
 
+        private MaterialPropertyBlock pollutionPropertyBlock;
+        private MaterialPropertyBlock waterPropertyBlock;
+        private int baseColorId;
+        private int voroniColorId;
+
         [Header("Grid Info")]
         public Vector2Int coords;
+
+        private void Awake()
+        {
+            baseColorId = Shader.PropertyToID(baseColorProperty);
+            voroniColorId = Shader.PropertyToID(voroniColorProperty);
+            pollutionRenderer = pollutionVisual.GetComponentInChildren<Renderer>();
+            pollutionPropertyBlock = new MaterialPropertyBlock();
+            pollutionSourceWaterRenderer = pollutionSourceWaterVisual.GetComponentInChildren<Renderer>();
+            waterPropertyBlock = new MaterialPropertyBlock();
+        }
 
         private void OnEnable()
         {
             GridEvents.OnPlantUpdated += HandlePlantUpdate;
             GridEvents.OnPollutionUpdated += HandlePollutionUpdate;
+            GridEvents.OnPlantKilledByPollution += HandlePlantKilledByPollution;
+            GridEvents.OnPollutionKilledByPlant += HandlePollutionKilledByPlant;
         }
 
         private void OnDisable()
         {
             GridEvents.OnPlantUpdated -= HandlePlantUpdate;
             GridEvents.OnPollutionUpdated -= HandlePollutionUpdate;
+            GridEvents.OnPlantKilledByPollution -= HandlePlantKilledByPollution;
+            GridEvents.OnPollutionKilledByPlant -= HandlePollutionKilledByPlant;
         }
 
         #region Grid Event Handlers
@@ -86,28 +116,96 @@ namespace Egglers
                 resistance = source.pollutionResistance;
             }
 
-            if (pollutionParticles != null)
-            {
-                if (level <= 0.01f)
-                {
-                    pollutionParticles.DisableVisuals();
-                }
-                else
-                {
-                    pollutionParticles.EnableVisuals();
+            float spreadIntensity = Mathf.Clamp01(spreadRate / SpreadNormalization);
+            float strengthIntensity = Mathf.Clamp01(strength / StrengthNormalization);
+            float resistanceIntensity = Mathf.Clamp01(resistance / ResistanceNormalization);
 
-                    float spreadIntensity = Mathf.Clamp01(spreadRate / SpreadNormalization);
-                    float strengthIntensity = Mathf.Clamp01(strength / StrengthNormalization);
-                    float resistanceIntensity = Mathf.Clamp01(resistance / ResistanceNormalization);
-
-                    pollutionParticles.SetResistanceIntensity(resistanceIntensity);
-                    pollutionParticles.SetAttackIntensity(strengthIntensity);
-                    pollutionParticles.SetSpreadIntensity(spreadIntensity);
-                }
-            }
+            UpdatePollutionMaterial(strengthIntensity, resistanceIntensity);
+            UpdateWaterMaterial(strengthIntensity, resistanceIntensity);
+            UpdatePollutionVisualState(tile != null || (source != null && source.IsActive), source);
+        }
+        private void HandlePlantKilledByPollution(Vector2Int pos)
+        {
+            if (pos != coords || pollutionParticles == null) return;
+            pollutionParticles.PlayPlantDeath();
         }
 
+        private void HandlePollutionKilledByPlant(Vector2Int pos)
+        {
+            if (pos != coords || pollutionParticles == null) return;
+            pollutionParticles.PlayPollutionDeath();
+        }
+
+
         #endregion
+
+        private void UpdatePollutionVisualState(bool hasPollution, PollutionSource source)
+        {
+            bool hasSource = source != null;
+            bool isActive = hasSource && source.IsActive;
+
+            pollutionSourceVisual.SetActive(hasSource);
+            pollutionSourceWaterVisual.SetActive(isActive);
+            pollutionVisual.SetActive(hasPollution);
+        }
+
+        private void UpdatePollutionMaterial(float strengthIntensity, float resistanceIntensity)
+        {
+            if (pollutionRenderer == null || pollutionPropertyBlock == null)
+            {
+                return;
+            }
+
+            pollutionRenderer.GetPropertyBlock(pollutionPropertyBlock);
+
+            Color baseColor = ApplyHdrIntensity(pollutionBaseColor, strengthIntensity);
+            Color voroniColor = ApplyHdrIntensity(pollutionVoroniColor, resistanceIntensity);
+
+            if (baseColorId != 0)
+            {
+                pollutionPropertyBlock.SetColor(baseColorId, baseColor);
+            }
+            if (voroniColorId != 0)
+            {
+                pollutionPropertyBlock.SetColor(voroniColorId, voroniColor);
+            }
+
+            pollutionRenderer.SetPropertyBlock(pollutionPropertyBlock);
+        }
+
+        private void UpdateWaterMaterial(float strengthIntensity, float resistanceIntensity)
+        {
+            if (pollutionSourceWaterRenderer == null || waterPropertyBlock == null)
+            {
+                return;
+            }
+
+            pollutionSourceWaterRenderer.GetPropertyBlock(waterPropertyBlock);
+
+            Color baseColor = ApplyHdrIntensity(pollutionBaseColor, strengthIntensity);
+            Color voroniColor = ApplyHdrIntensity(pollutionVoroniColor, resistanceIntensity);
+
+            if (baseColorId != 0)
+            {
+                waterPropertyBlock.SetColor(baseColorId, baseColor);
+            }
+            if (voroniColorId != 0)
+            {
+                waterPropertyBlock.SetColor(voroniColorId, voroniColor);
+            }
+
+            pollutionSourceWaterRenderer.SetPropertyBlock(waterPropertyBlock);
+        }
+
+        private Color ApplyHdrIntensity(Color color, float normalizedValue)
+        {
+            float clampedNormalized = Mathf.Clamp01(normalizedValue);
+            float hdrIntensity = Mathf.Lerp(colorIntensityMin, colorIntensityMax, clampedNormalized);
+            float multiplier = Mathf.Pow(2f, hdrIntensity);
+            Color adjusted = color * multiplier;
+            adjusted.a = color.a;
+            return adjusted;
+        }
 
         public void RefreshActions()
         {
@@ -182,5 +280,6 @@ namespace Egglers
         }
 
         #endregion
+
     }
 }

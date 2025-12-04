@@ -78,6 +78,7 @@ namespace Egglers
                 {
                     if (neighborPlantBit.attackDamage >= pollutionStrength) continue;
                     PollutionManager.Instance.plantManager.KillPlantBit(neighborPlantBit);
+                    GridEvents.PlantKilledByPollution(neighborPlantBit.position);
                 }
 
                 // If empty (null), create new tile
@@ -163,6 +164,7 @@ namespace Egglers
 
             if (GetTotalPollution() <= 0.1f)
             {
+                GridEvents.PollutionKilledByPlant(position);
                 PollutionManager.Instance.RemovePollutionAt(position.x, position.y);
             }
             else
