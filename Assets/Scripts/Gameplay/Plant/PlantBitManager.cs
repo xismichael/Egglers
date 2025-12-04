@@ -211,6 +211,7 @@ namespace Egglers
             if (plantBit == null || !graftBuffer.hasContent)
             {
                 Debug.Log($"[PlantBitManager] Cannot apply graft at {pos} (missing plant or empty graft buffer)");
+                SoundManager.Instance.PlayError();
                 return;
             }
 
@@ -226,6 +227,14 @@ namespace Egglers
             if (plantBit == null)
             {
                 Debug.Log($"[PlantBitManager] RemoveGraft failed at {pos}: no plant found");
+                return;
+            }
+
+            if (plantBit.isHeart)
+            {
+                Debug.Log($"[PlantBitManager] RemoveGraft failed at {pos}: Can't Graft Heart");
+                SoundManager.Instance.PlayError();
+
                 return;
             }
 

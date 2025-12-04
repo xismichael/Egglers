@@ -127,6 +127,8 @@ namespace Egglers
             if (!IsValidHeartPlacement(pos))
             {
                 Debug.LogWarning("Invalid Heart placement position");
+                SoundManager.Instance.PlayError();
+
                 return;
             }
 
@@ -179,10 +181,10 @@ namespace Egglers
                 gameState = GameState.Won;
                 StopGameLoops();
                 Debug.Log("Victory! All pollution sources destroyed!");
-                
+
                 // Play victory sound
                 SoundManager.Instance.PlayVictory();
-                
+
                 uiManager.GoToMenu(GameMenuID.GameOver);
             }
         }
@@ -194,10 +196,10 @@ namespace Egglers
                 gameState = GameState.Lost;
                 StopGameLoops();
                 Debug.Log("Defeat! The Heart has been overwhelmed by pollution!");
-                
+
                 // Play defeat sound
                 SoundManager.Instance.PlayDefeat();
-                
+
                 uiManager.GoToMenu(GameMenuID.GameOver);
             }
         }

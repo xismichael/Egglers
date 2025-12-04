@@ -328,11 +328,13 @@ namespace Egglers
             if (phase == PlantBitPhase.Bud)
             {
                 Debug.LogWarning("Cannot remove graft, plant is still a bud");
+                SoundManager.Instance.PlayError();
                 return;
             }
 
             if (graftingCooldown > 0)
             {
+                SoundManager.Instance.PlayError();
                 Debug.LogWarning("Cannot remove graft, plant is on grafting cooldown");
                 return;
             }
@@ -341,6 +343,8 @@ namespace Egglers
             if (leaf > (leafCount + graftedLeafCount) || root > (rootCount + graftedRootCount) || fruit > (fruitCount + graftedFruitCount))
             {
                 Debug.LogWarning("Cannot remove graft, trying to remove more grafts than available");
+                SoundManager.Instance.PlayError();
+
                 return;
             }
 
@@ -350,6 +354,7 @@ namespace Egglers
             if (!plantManager.RemoveEnergy(0))
             {
                 Debug.LogWarning("Cannot remove graft, not enough resources to remove components");
+                SoundManager.Instance.PlayError();
                 return;
             }
 
@@ -373,7 +378,7 @@ namespace Egglers
             if (graftingCooldown > 0)
             {
                 Debug.Log($"[PlantBit] Cannot apply graft: Grafting cooldown active ({graftingCooldown} ticks remaining)");
-                
+
                 // Play error sound
                 SoundManager.Instance.PlayError();
                 return;
@@ -383,7 +388,7 @@ namespace Egglers
             if (TotalComponents + graft.TotalComponents > maxComponentCount)
             {
                 Debug.Log($"[PlantBit] Cannot apply graft: Total components ({TotalComponents + graft.TotalComponents}) exceed max ({maxComponentCount})");
-                
+
                 // Play error sound
                 SoundManager.Instance.PlayError();
                 return;
@@ -397,7 +402,7 @@ namespace Egglers
             if (!plantManager.RemoveEnergy(cost))
             {
                 Debug.Log($"[PlantBit] Cannot apply graft: Not enough energy (Current: {plantManager.currentEnergy}, Needed: {cost})");
-                
+
                 // Play error sound
                 SoundManager.Instance.PlayError();
                 return;
@@ -431,6 +436,7 @@ namespace Egglers
             if (isHeart)
             {
                 Debug.LogWarning("[PlantBit] Cannot nip the heart!");
+                SoundManager.Instance.PlayError();
                 return;
             }
 

@@ -68,7 +68,7 @@ namespace Egglers
         {
             if (musicSource != null)
                 musicSource.volume = musicVolume;
-            
+
             if (sfxSource != null)
                 sfxSource.volume = sfxVolume;
         }
@@ -107,7 +107,7 @@ namespace Egglers
 
         public void PlayError()
         {
-            PlaySound(errorSound);
+            PlaySound(errorSound, 2.0f);
         }
 
         public void PlayVictory()
