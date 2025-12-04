@@ -59,6 +59,27 @@ namespace Egglers
         private void Start()
         {
             PlayBackgroundMusic();
+
+            // Subscribe to grid events for automatic sound playing
+            GridEvents.OnPlantKilledByPollution += HandlePlantDeath;
+            GridEvents.OnPollutionKilledByPlant += HandlePollutionDestroyed;
+        }
+
+        private void OnDestroy()
+        {
+            // Unsubscribe from events
+            GridEvents.OnPlantKilledByPollution -= HandlePlantDeath;
+            GridEvents.OnPollutionKilledByPlant -= HandlePollutionDestroyed;
+        }
+
+        private void HandlePlantDeath(Vector2Int pos)
+        {
+            PlayPlantDeath();
+        }
+
+        private void HandlePollutionDestroyed(Vector2Int pos)
+        {
+            PlayPollutionDestroyed();
         }
 
         /// <summary>
