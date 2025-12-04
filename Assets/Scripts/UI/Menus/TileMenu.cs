@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -18,61 +20,73 @@ namespace Egglers
         [SerializeField] private Button removeGraftButton;
         [SerializeField] private Button applyGraftButton;
         [SerializeField] private Button debugButton;
+        [SerializeField] private Button closeButton;
         [SerializeField] private TMP_Text tooltipText;
-        [SerializeField] private string defaultTooltip;
 
+        private GameObject focusedTile;
+        private TileActions tileActions;
+
+        private enum ButtonActions
+        {
+            PlaceHeart,
+            NipBud,
+            RemoveGraft,
+            ApplyGraft,
+            Debug,
+            CloseMenu,
+            None,
+        }
+
+        private Button[] buttons;
 
         protected override void InnerAwake()
         {
-            AddEssentialListeners();
-            base.InnerAwake();
-        }
+            placeHeartButton.onClick.AddListener(OnPlaceHeartClicked);
+            nipBudButton.onClick.AddListener(OnNipBudClicked);
+            removeGraftButton.onClick.AddListener(OnRemoveGraftClicked);
+            applyGraftButton.onClick.AddListener(OnApplyGraftClicked);
+            debugButton.onClick.AddListener(OnDebugClicked);
+            closeButton.onClick.AddListener(OnCloseClicked);
 
-        public override void OpenMenu()
-        {
-            UIManager.Instance.SetCursorVisible(true);
-            base.OpenMenu();
+            buttons = new Button[]
+            {
+                placeHeartButton,
+                nipBudButton,
+                removeGraftButton,
+                applyGraftButton,
+                debugButton,
+                closeButton,
+            };
+
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                // Tooltip hovering events
+                EventTrigger trigger = buttons[i].gameObject.AddComponent<EventTrigger>();
+
+                ButtonActions action = (ButtonActions) i;
+                var enterEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+                enterEntry.callback.AddListener((_) => ShowTooltip(action));
+                trigger.triggers.Add(enterEntry);
+
+                var exitEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+                exitEntry.callback.AddListener((_) => ShowTooltip(ButtonActions.None));
+                trigger.triggers.Add(exitEntry);
+            }
+
+            ShowTooltip(ButtonActions.None);
+
+            base.InnerAwake();
         }
 
         public override void RefreshMenu()
         {
-            RemoveListeners();
-            AddEssentialListeners();
+            focusedTile = GameManager.Instance.focusedTile;
+            tileActions = GameManager.Instance.focusedTile.GetComponent<TileActions>();
 
-            highlightManager.SetSelectedTile(GameManager.Instance.focusedTile);
+            placeHeartButton.gameObject.SetActive(GameManager.Instance.gameState == GameState.HeartPlacement);
+
+            highlightManager.SetSelectedTile(focusedTile);
             highlightManager.SetContextMenuOpen(true);
-
-            tooltipText.gameObject.SetActive(true);
-            tooltipText.text = defaultTooltip;
-            
-            TileActions tileActions = GameManager.Instance.focusedTile.GetComponent<TileActions>();
-
-            // Go over the actions and tie them to the right buttons
-            foreach (var action in tileActions.actions)
-            {
-                // Debug.Log($"[Tile menu] Action type: {action.actionType}");
-                Button triggerButton = action.actionType switch
-                {
-                    TileActionType.PlaceHeart => placeHeartButton,
-                    TileActionType.NipBud => nipBudButton,
-                    TileActionType.ApplyGraft => applyGraftButton,
-                    TileActionType.Debug => debugButton,
-                    _ => null
-                };
-
-                if (triggerButton == null) continue;
-
-                triggerButton.onClick.AddListener(() =>
-                {
-                    action.callback?.Invoke(GameManager.Instance.focusedTile);
-                });
-
-                // Tooltip hover
-                EventTrigger trigger = triggerButton.gameObject.AddComponent<EventTrigger>();
-                var enterEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
-                enterEntry.callback.AddListener((_) => ShowTooltip(action));
-                trigger.triggers.Add(enterEntry);
-            }
 
             base.RefreshMenu();
         }
@@ -81,30 +95,44 @@ namespace Egglers
         {
             highlightManager.SetContextMenuOpen(false);
             highlightManager.ClearSelectedTile();
-            RemoveListeners();
             base.CloseMenu();
         }
 
-        void ShowTooltip(TileActions.TileAction action)
+        public override void OpenMenu()
         {
-            tooltipText.gameObject.SetActive(true);
+            UIManager.Instance.SetCursorVisible(true);
+            base.OpenMenu();
+        }
+
+        void ShowTooltip(ButtonActions action)
+        {
             tooltipText.text = GetTooltipText(action);
         }
 
-        string GetTooltipText(TileActions.TileAction action)
+        string GetTooltipText(ButtonActions action)
         {
-            return action.actionType switch
+            return action switch
             {
-                TileActionType.PlaceHeart => "Place the heart here.",
-                TileActionType.NipBud => "Nip a bud to gain energy.",
-                TileActionType.ApplyGraft => "Apply stored graft.",
-                TileActionType.Plant1 => "Select Plant 1.",
-                TileActionType.Plant2 => "Select Plant 2.",
-                TileActionType.Plant3 => "Select Plant 3.",
-                TileActionType.Billboard => "Show a message.",
-                TileActionType.Debug => "Debug this tile.",
-                _ => "Select an action."
+                ButtonActions.PlaceHeart => "Place the heart here",
+                ButtonActions.NipBud => "Nip a bud to gain energy",
+                ButtonActions.ApplyGraft => "Apply stored graft",
+                ButtonActions.RemoveGraft => "Remove graft",
+                ButtonActions.Debug => "Debug this tile",
+                ButtonActions.CloseMenu => "Close menu",
+                ButtonActions.None => "",
+                _ => ""
             };
+        }
+
+        private void OnPlaceHeartClicked()
+        {
+            tileActions.InvokeAction(TileActionType.PlaceHeart);
+            UIManager.Instance.SetMenuDirty(GameMenuID.TileMenu);
+        }
+
+        private void OnNipBudClicked()
+        {
+            tileActions.InvokeAction(TileActionType.NipBud);
         }
 
         private void OnRemoveGraftClicked()
@@ -112,13 +140,23 @@ namespace Egglers
             Debug.Log("[TileMenu] Going to Graft Menu");
             UIManager.Instance.GoToMenu(GameMenuID.GraftMenu);
         }
-        
-        private void OnDestroy()
+
+        private void OnApplyGraftClicked()
         {
-            RemoveListeners();
+            tileActions.InvokeAction(TileActionType.ApplyGraft);
         }
 
-        private void RemoveListeners()
+        private void OnDebugClicked()
+        {
+            tileActions.InvokeAction(TileActionType.Debug);
+        }
+
+        private void OnCloseClicked()
+        {
+            UIManager.Instance.GoToMenu(GameMenuID.HUD);
+        }
+        
+        private void OnDestroy()
         {
             placeHeartButton.onClick.RemoveAllListeners();
             nipBudButton.onClick.RemoveAllListeners();
@@ -126,11 +164,7 @@ namespace Egglers
             applyGraftButton.onClick.RemoveAllListeners();
             removeGraftButton.onClick.RemoveAllListeners();
             debugButton.onClick.RemoveAllListeners();
-        }
-
-        private void AddEssentialListeners()
-        {
-            removeGraftButton.onClick.AddListener(OnRemoveGraftClicked);
+            closeButton.onClick.RemoveAllListeners();
         }
     }
 }
