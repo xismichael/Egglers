@@ -161,7 +161,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 0
+  m_PresetInfoIsWorld: 1
 --- !u!114 &4373228571584755219
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -204,3 +204,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Egglers.HUD
   isDirty: 0
+  fadeDuration: 0.3
+  energyText: {fileID: 0}
+  energyBarLength: 10
+  graftBufferText: {fileID: 0}
+  pollutionSourcesText: {fileID: 0}
+  pollutionBarLength: 10
+  gameStateText: {fileID: 0}
