@@ -123,8 +123,11 @@ namespace Egglers
 
             plantBit.TickUpdate();
 
-            foreach (PlantBit child in plantBit.children)
+            // Iterate normally but skip null children
+            for (int i = 0; i < plantBit.children.Count; i++)
             {
+                PlantBit child = plantBit.children[i];
+                if (child == null) continue; // skip if child has been removed
                 UpdatePlants(child);
             }
         }
@@ -235,7 +238,7 @@ namespace Egglers
             {
                 plantBit.RemoveGraft(leaf, root, fruit);
             }
-            
+
             GridEvents.PlantUpdated(pos);
         }
 

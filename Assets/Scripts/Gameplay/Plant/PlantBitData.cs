@@ -62,7 +62,7 @@ namespace Egglers
 
 
         [Header("Extraction Parameters")]
-        
+
         [Tooltip("Multiplication factor for base pollution yield: yield = this * poll * eRate")]
         public float extractionPollutionFactor = 1.0f;
 

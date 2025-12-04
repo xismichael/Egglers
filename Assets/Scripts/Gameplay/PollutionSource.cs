@@ -6,23 +6,23 @@ namespace Egglers
     public class PollutionSource
     {
         public Vector2Int position;
-        
+
         // Pollution stats (what it emits)
         public float pollutionSpreadRate;
         public float pollutionStrength;
         public float pollutionResistance;
-        
+
         // Timing
         public float pulseRate; // how often it spreads (in seconds)
         public float dormantDuration; // delay before it starts (in seconds)
-        
+
         // Internal tracking
         public float timeSinceCreation;
         public bool IsActive => timeSinceCreation >= dormantDuration;
-        
+
         // Network tracking
         public List<PollutionTile> connectedTiles = new List<PollutionTile>(); // all tiles connected to this source
-        
+
         public PollutionSource(Vector2Int pos, float spreadRate, float strength, float resistance, float pulse, float dormant)
         {
             position = pos;
@@ -33,12 +33,12 @@ namespace Egglers
             dormantDuration = dormant;
             timeSinceCreation = 0f;
         }
-        
+
         public float GetTotalPollution()
         {
             return pollutionSpreadRate + pollutionStrength + pollutionResistance;
         }
-        
+
         public void Pulse()
         {
             // Only pulse if active
@@ -47,30 +47,30 @@ namespace Egglers
                 return;
             }
 
-        
-            
+
+
             // Take snapshot of tiles before the pulse, so new tiles dont spread yet
             List<PollutionTile> tilesBeforePulse = new List<PollutionTile>(connectedTiles);
-            
+
             // Get adjacent positions
             List<Vector2Int> adjacentPositions = PollutionManager.Instance.GetAdjacentPositions(position);
-            
+
             float myTotalPollution = GetTotalPollution();
             float maxNeighborPollution = myTotalPollution * 0.9f;
-            
+
             // Calculate 10% to emit (like tiles)
             float emitSpreadRate = pollutionSpreadRate * 0.1f;
             float emitStrength = pollutionStrength * 0.1f;
             float emitResistance = pollutionResistance * 0.1f;
             float totalEmit = emitSpreadRate + emitStrength + emitResistance;
 
-            
-            
+
+
             foreach (Vector2Int neighborPos in adjacentPositions)
             {
                 PollutionSource neighborSource = PollutionManager.Instance.gameGrid.GetEntity<PollutionSource>(neighborPos);
                 if (neighborSource != null) continue;
-                
+
                 PollutionTile neighborTile = PollutionManager.Instance.gameGrid.GetEntity<PollutionTile>(neighborPos);
                 PlantBit neighborPlantBit = PollutionManager.Instance.gameGrid.GetEntity<PlantBit>(neighborPos);
 
@@ -79,7 +79,7 @@ namespace Egglers
                     if (neighborPlantBit.attackDamage >= pollutionStrength) continue;
                     PollutionManager.Instance.plantManager.KillPlantBit(neighborPlantBit);
                 }
-                
+
                 // If empty (null), create new tile
                 if (neighborTile == null)
                 {
@@ -95,14 +95,14 @@ namespace Egglers
                     {
                         continue;
                     }
-                    
+
                     // Add pollution only if under 90% cap
                     float neighborCurrent = neighborTile.GetTotalPollution();
                     if (neighborCurrent < maxNeighborPollution)
                     {
                         // Calculate how much room is left
                         float roomLeft = maxNeighborPollution - neighborCurrent;
-                        
+
                         // If adding full amount would exceed cap, scale it down
                         if (totalEmit > roomLeft)
                         {
@@ -113,21 +113,21 @@ namespace Egglers
                         {
                             PollutionManager.Instance.AddPollutionToTile(neighborTile, emitSpreadRate, emitStrength, emitResistance);
                         }
-                        
+
                         // Connect this source to the tile
                         ConnectToTile(neighborTile);
                     }
                 }
                 // If it's another PollutionSource, skip
             }
-            
+
             // Now spread tiles that existed BEFORE this pulse (not newly created ones)
             foreach (PollutionTile tile in tilesBeforePulse)
             {
                 tile.Spread();
             }
         }
-        
+
         private void ConnectToTile(PollutionTile tile)
         {
             // Add source to tile's connected sources
@@ -135,7 +135,7 @@ namespace Egglers
             {
                 tile.connectedSources.Add(this);
             }
-            
+
             // Add tile to source's connected tiles
             if (!connectedTiles.Contains(tile))
             {
@@ -143,34 +143,34 @@ namespace Egglers
             }
         }
 
-        public void TakeDamage(float amount)
+        public float TakeDamage(float amount)
         {
-            if (amount <= 0f)
-            {
-                return;
-            }
+            if (amount <= 0f) return 0f;
 
             float currentTotal = GetTotalPollution();
-            if (currentTotal <= 0f)
-            {
-                return;
-            }
+            if (currentTotal <= 0f) return 0f;
 
             float damage = Mathf.Min(amount, currentTotal);
             float ratio = damage / currentTotal;
 
+            // Reduce pollution
             pollutionSpreadRate = Mathf.Max(0f, pollutionSpreadRate - (pollutionSpreadRate * ratio));
             pollutionStrength = Mathf.Max(0f, pollutionStrength - (pollutionStrength * ratio));
             pollutionResistance = Mathf.Max(0f, pollutionResistance - (pollutionResistance * ratio));
 
+            // Calculate retaliation: proportional to pollutionStrength or total pollution
+            float retaliation = pollutionStrength * 0.5f; // e.g., 50% of strength damages plant
+
             if (GetTotalPollution() <= 0.1f)
             {
-                PollutionManager.Instance.RemoveSource(this);
+                PollutionManager.Instance.RemovePollutionAt(position.x, position.y);
             }
             else
             {
                 GridEvents.PollutionUpdated(position);
             }
+
+            return retaliation; // return damage to plant
         }
     }
 }

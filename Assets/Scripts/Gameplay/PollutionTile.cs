@@ -12,9 +12,9 @@ namespace Egglers
         public float pollutionResistance; // how quick for the plant to consume the pollution
 
         private float minSpreadAmmount = 1.0f;
-        
+
         public bool isFrozen; // if true, cannot b added to or spread
-        
+
         public HashSet<PollutionSource> connectedSources = new HashSet<PollutionSource>(); // tracks which sources this tile is connected to
 
         public PollutionTile(Vector2Int pos)
@@ -34,7 +34,7 @@ namespace Egglers
             {
                 return;
             }
-            
+
             // Get adjacent positions
             List<Vector2Int> adjacentPositions = PollutionManager.Instance.GetAdjacentPositions(position);
 
@@ -62,81 +62,58 @@ namespace Egglers
                 // Skip if a pollution source already occupies this tile
                 if (neighborSource != null) continue;
 
-
+                // Attack plant if pollution is stronger
                 if (neighborPlantBit != null)
                 {
-                    // Skip if the plant bit's attack damage is greater than or equal to the pollution strength
-                    if (neighborPlantBit.attackDamage >= pollutionStrength) continue;
-                    PollutionManager.Instance.plantManager.KillPlantBit(neighborPlantBit);
-                }
-
-                
-                // If empty (null), create new tile
-                if (neighborTile == null)
-                {
-                    PollutionTile newTile = PollutionManager.Instance.AddPollutionToPosition(neighborPos, spreadAmount_SpreadRate, spreadAmount_Strength, spreadAmount_Resistance);
-                    // Connect all of this tile's sources to the new tile
-                    foreach (PollutionSource source in connectedSources)
+                    if (pollutionStrength > neighborPlantBit.attackDamage)
                     {
-                        if (!newTile.connectedSources.Contains(source))
-                        {
-                            newTile.connectedSources.Add(source);
-                        }
-                        if (!source.connectedTiles.Contains(newTile))
-                        {
-                            source.connectedTiles.Add(newTile);
-                        }
+                        PollutionManager.Instance.plantManager.KillPlantBit(neighborPlantBit);
+                        Debug.Log($"[PollutionTile] Killed plant at {neighborPos} | PollutionStrength: {pollutionStrength}, PlantAttack: {neighborPlantBit.attackDamage}");
                     }
                 }
-                // If it's a PollutionTile, check if we can add to it
+
+                // Create new tile if empty
+                if (neighborTile == null)
+                {
+                    PollutionTile newTile = PollutionManager.Instance.AddPollutionToPosition(
+                        neighborPos, spreadAmount_SpreadRate, spreadAmount_Strength, spreadAmount_Resistance
+                    );
+                    foreach (PollutionSource source in connectedSources)
+                    {
+                        newTile.connectedSources.Add(source);
+                        source.connectedTiles.Add(newTile);
+                    }
+                }
                 else
                 {
                     // Skip frozen tiles
-                    if (neighborTile.isFrozen)
-                    {
-                        continue;
-                    }
-                    
+                    if (neighborTile.isFrozen) continue;
+
                     float neighborCurrent = neighborTile.GetTotalPollution();
-                    
-                    // Only spread if neighbor has less than 90% of my pollution
+                    maxNeighborPollution = GetTotalPollution() * 0.9f;
+
                     if (neighborCurrent < maxNeighborPollution)
                     {
-                        // Calculate how much room is left before hitting the 90% cap
                         float roomLeft = maxNeighborPollution - neighborCurrent;
-                        
-                        // If adding the full amount would exceed 90%, clamp it
-                        if (totalSpreadAmount > roomLeft)
-                        {
-                            // Scale down all three stats proportionally
-                            float scaleFactor = roomLeft / totalSpreadAmount;
-                            float clampedSpreadRate = spreadAmount_SpreadRate * scaleFactor;
-                            float clampedStrength = spreadAmount_Strength * scaleFactor;
-                            float clampedResistance = spreadAmount_Resistance * scaleFactor;
-                            
-                            PollutionManager.Instance.AddPollutionToTile(neighborTile, clampedSpreadRate, clampedStrength, clampedResistance);
-                        }
-                        else
-                        {
-                            // Safe to add the full amount
-                            PollutionManager.Instance.AddPollutionToTile(neighborTile, spreadAmount_SpreadRate, spreadAmount_Strength, spreadAmount_Resistance);
-                        }
-                        
-                        // Connect all of this tile's sources to the neighbor (merging networks)
+                        totalSpreadAmount = spreadAmount_SpreadRate + spreadAmount_Strength + spreadAmount_Resistance;
+
+                        float scaleFactor = totalSpreadAmount > roomLeft ? roomLeft / totalSpreadAmount : 1f;
+
+                        PollutionManager.Instance.AddPollutionToTile(
+                            neighborTile,
+                            spreadAmount_SpreadRate * scaleFactor,
+                            spreadAmount_Strength * scaleFactor,
+                            spreadAmount_Resistance * scaleFactor
+                        );
+
+                        // Merge network connections
                         foreach (PollutionSource source in connectedSources)
                         {
-                            if (!neighborTile.connectedSources.Contains(source))
-                            {
-                                neighborTile.connectedSources.Add(source);
-                            }
-                            if (!source.connectedTiles.Contains(neighborTile))
-                            {
-                                source.connectedTiles.Add(neighborTile);
-                            }
+                            neighborTile.connectedSources.Add(source);
+                            source.connectedTiles.Add(neighborTile);
                         }
                     }
                 }
-                // If it's a PollutionSource, skip
             }
         }
 
