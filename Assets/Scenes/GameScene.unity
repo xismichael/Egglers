@@ -2580,7 +2580,7 @@ MonoBehaviour:
     spreadRate: 6
     strength: 50
     resistance: 0
-    pulseRate: 1
+    pulseRate: 10
     dormantDuration: 1
   focusedTile: {fileID: 0}
 --- !u!1 &519588064
