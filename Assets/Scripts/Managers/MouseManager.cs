@@ -53,7 +53,7 @@ namespace Egglers
             Debug.Log($"[MouseManager] New Tile is {tile.GetComponent<GridVisualTile>().coords}");
 
             CameraManager.Instance.PanToTarget(tile.transform.position);
-            CameraManager.Instance.ZoomToTarget(0.2f);
+            CameraManager.Instance.ZoomToTarget(0.3f);
 
             GameManager.Instance.focusedTile = tile;
             UIManager.Instance.SetMenuDirty(GameMenuID.TileMenu);
