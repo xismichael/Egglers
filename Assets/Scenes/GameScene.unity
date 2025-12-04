@@ -2543,8 +2543,7 @@ Transform:
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 595526087}
+  m_Children: []
   m_Father: {fileID: 1758763994}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &516984924
@@ -2574,14 +2573,14 @@ MonoBehaviour:
     spreadRate: 6
     strength: 6
     resistance: 50
-    pulseRate: 1
-    dormantDuration: 1
+    pulseRate: 3
+    dormantDuration: 9
   - position: {x: 6, y: 6}
     spreadRate: 6
     strength: 50
     resistance: 0
     pulseRate: 10
-    dormantDuration: 1
+    dormantDuration: 8
   focusedTile: {fileID: 0}
 --- !u!1 &519588064
 GameObject:
@@ -3172,7 +3171,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 516984923}
+  m_Father: {fileID: 1758763994}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &595526088
 MonoBehaviour:
@@ -9415,6 +9414,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 516984923}
+  - {fileID: 595526087}
   - {fileID: 1602547427}
   - {fileID: 973269524}
   - {fileID: 115253259}
