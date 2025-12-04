@@ -1,4 +1,6 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Egglers
@@ -16,11 +18,12 @@ namespace Egglers
         [SerializeField] private float spreadEmissionMultiplier = 3f;
 
         [Header("Burst counts")]
-        [SerializeField] private int resistanceBurstCount = 10;
-        [SerializeField] private int attackBurstCount = 40;
+        [SerializeField] private int resistanceBurstCount = 20;
+        [SerializeField] private int attackBurstCount = 80;
         [SerializeField] private int spreadBurstCount = 15;
 
-        private Coroutine playRoutine;
+        private Coroutine plantDeathRoutine;
+        private Coroutine pollutionDeathRoutine;
         private ParticleSystem[] systems;
         private float resistanceBaseRate;
         private float attackBaseRate;
@@ -39,21 +42,41 @@ namespace Egglers
             }
         }
 
-        public void PlayOnce()
+        public void PlayPlantDeath()
         {
             systems = systems ?? GetAvailableSystems();
-            if (systems.Length == 0) return;
-
-            if (playRoutine != null)
-            {
-                StopCoroutine(playRoutine);
-            }
-            playRoutine = StartCoroutine(PlayOnceRoutine());
+            List<ParticleSystem> targets = new List<ParticleSystem>();
+            if (attackSystem != null) targets.Add(attackSystem);
+            if (resistanceSystem != null) targets.Add(resistanceSystem);
+            StartRoutine(ref plantDeathRoutine, targets, () => plantDeathRoutine = null);
         }
 
-        private IEnumerator PlayOnceRoutine()
+        public void PlayPollutionDeath()
         {
-            foreach (var ps in systems)
+            systems = systems ?? GetAvailableSystems();
+            List<ParticleSystem> targets = new List<ParticleSystem>();
+            if (spreadSystem != null)
+            {
+                targets.Add(spreadSystem);
+            }
+            StartRoutine(ref pollutionDeathRoutine, targets, () => pollutionDeathRoutine = null);
+        }
+
+        private void StartRoutine(ref Coroutine routine, List<ParticleSystem> targets, Action clearAction)
+        {
+            if (targets == null || targets.Count == 0) return;
+
+            if (routine != null)
+            {
+                StopCoroutine(routine);
+            }
+
+            routine = StartCoroutine(PlayRoutine(targets, clearAction));
+        }
+
+        private IEnumerator PlayRoutine(List<ParticleSystem> targets, Action onComplete)
+        {
+            foreach (var ps in targets)
             {
                 if (ps == null) continue;
 
@@ -73,7 +96,7 @@ namespace Egglers
                 yield return null;
             }
 
-            foreach (var ps in systems)
+            foreach (var ps in targets)
             {
                 if (ps == null) continue;
 
@@ -81,7 +104,7 @@ namespace Egglers
                 ApplyEmission(ps, false);
             }
 
-            playRoutine = null;
+            onComplete?.Invoke();
         }
 
         private void ApplyEmission(ParticleSystem system, bool boosted)

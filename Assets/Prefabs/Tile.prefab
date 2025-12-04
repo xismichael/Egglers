@@ -354,6 +354,7 @@ MonoBehaviour:
   pollutionSourceWaterVisual: {fileID: 2908034787884080909}
   pollutionVisual: {fileID: 6684874640676004790}
   pollutionRenderer: {fileID: 5894350257595557826}
+  pollutionSourceWaterRenderer: {fileID: 0}
   pollutionBaseColor: {r: 0.679924, g: 0, b: 1, a: 1}
   pollutionVoroniColor: {r: 0.17270099, g: 0.7924528, b: 0.14578143, a: 1}
   colorIntensityMin: -7
@@ -712,6 +713,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: PollutionParticles
       objectReference: {fileID: 0}
+    - target: {fileID: 2998507478444323193, guid: e433e83251ba74b56af3f7175da16007, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5145452262211227403, guid: e433e83251ba74b56af3f7175da16007, type: 3}
       propertyPath: simulationSpeed
       value: 1
@@ -881,6 +886,13 @@ MonoBehaviour:
   resistanceSystem: {fileID: 4012922408845918654}
   attackSystem: {fileID: 4795367393375055076}
   spreadSystem: {fileID: 6233098892967009555}
+  activeDuration: 1.5
+  resistanceEmissionMultiplier: 2
+  attackEmissionMultiplier: 8
+  spreadEmissionMultiplier: 3
+  resistanceBurstCount: 10
+  attackBurstCount: 40
+  spreadBurstCount: 15
 --- !u!198 &4795367393375055076 stripped
 ParticleSystem:
   m_CorrespondingSourceObject: {fileID: 6009115569887198972, guid: e433e83251ba74b56af3f7175da16007, type: 3}

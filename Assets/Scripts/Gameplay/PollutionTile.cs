@@ -163,6 +163,7 @@ namespace Egglers
 
             if (GetTotalPollution() <= 0.1f)
             {
+                GridEvents.PollutionKilledByPlant(position);
                 PollutionManager.Instance.RemovePollutionAt(position.x, position.y);
             }
             else

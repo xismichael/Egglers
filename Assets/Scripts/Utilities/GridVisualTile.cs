@@ -64,6 +64,7 @@ namespace Egglers
             GridEvents.OnPlantUpdated += HandlePlantUpdate;
             GridEvents.OnPollutionUpdated += HandlePollutionUpdate;
             GridEvents.OnPlantKilledByPollution += HandlePlantKilledByPollution;
+            GridEvents.OnPollutionKilledByPlant += HandlePollutionKilledByPlant;
         }
 
         private void OnDisable()
@@ -71,6 +72,7 @@ namespace Egglers
             GridEvents.OnPlantUpdated -= HandlePlantUpdate;
             GridEvents.OnPollutionUpdated -= HandlePollutionUpdate;
             GridEvents.OnPlantKilledByPollution -= HandlePlantKilledByPollution;
+            GridEvents.OnPollutionKilledByPlant -= HandlePollutionKilledByPlant;
         }
 
         #region Grid Event Handlers
@@ -125,7 +127,13 @@ namespace Egglers
         private void HandlePlantKilledByPollution(Vector2Int pos)
         {
             if (pos != coords || pollutionParticles == null) return;
-            pollutionParticles.PlayOnce();
+            pollutionParticles.PlayPlantDeath();
+        }
+
+        private void HandlePollutionKilledByPlant(Vector2Int pos)
+        {
+            if (pos != coords || pollutionParticles == null) return;
+            pollutionParticles.PlayPollutionDeath();
         }
 
 
