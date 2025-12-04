@@ -19,6 +19,7 @@ namespace Egglers
         public GameObject plant1;
         public GameObject plant2;
         public GameObject plant3;
+        public GameObject pipe;
 
         [Header("Billboard / Pollution")]
         public TMP_Text tmp;
