@@ -9,6 +9,7 @@ public class GridHighlighter : MonoBehaviour
     [Header("References")]
     public Camera cam;
     public bool ignoreUI = true; // if true, hovering is blocked when pointer over UI
+    public HUD hud; // Reference to HUD for updating hover info
 
     [Header("Tween Settings")]
     [Tooltip("Multiplier applied to the tile's original scale when highlighted.")]
@@ -82,6 +83,22 @@ public class GridHighlighter : MonoBehaviour
     // --------------------------
     void UpdateTargets()
     {
+        // Update HUD hover info when tile changes
+        if (hoveredTile != previousHoveredTile)
+        {
+            if (hud != null)
+            {
+                if (hoveredTile != null)
+                {
+                    hud.UpdateTileHoverInfo(hoveredTile);
+                }
+                else
+                {
+                    hud.OnTileHoverExit();
+                }
+            }
+        }
+
         // 1) If previous hovered tile lost hover and isn't selected, target -> original
         if (previousHoveredTile != null && previousHoveredTile != hoveredTile && previousHoveredTile != selectedTile)
         {
