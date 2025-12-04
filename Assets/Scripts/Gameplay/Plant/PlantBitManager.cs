@@ -153,6 +153,7 @@ namespace Egglers
             if (plantBit == heart)
             {
                 Debug.Log("[PlantBitManager] GAME OVER: HEART IS DEAD");
+                GameManager.Instance.TriggerLoss();
             }
 
             plantBit.Kill();
