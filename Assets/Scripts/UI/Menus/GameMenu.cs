@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 namespace Egglers
 {
@@ -15,6 +16,11 @@ namespace Egglers
         public bool isDirty = false;
         protected Canvas canvas;
         protected CanvasGroup canvasGroup;
+
+        [SerializeField] protected float fadeDuration = 0.3f;
+
+        private Coroutine fadeRoutine;
+
 
         private void Awake()
         {
@@ -61,15 +67,35 @@ namespace Egglers
             isDirty = false;
         }
 
+        private IEnumerator FadeCanvas(float start, float end)
+        {
+            float elapsed = 0f;
+            canvasGroup.alpha = start;
+
+            while (elapsed < fadeDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                canvasGroup.alpha = Mathf.Lerp(start, end, elapsed / fadeDuration);
+                yield return null;
+            }
+
+            canvasGroup.alpha = end;
+        }
+
+
         public virtual void CloseMenu()
         {
             // Extended menu logic before closing menu here
             // Debug.Log($"Closing canvas: {canvas}");
             //canvas.enabled = false;
-            canvasGroup.alpha = 0;
+            if (fadeRoutine != null)
+                StopCoroutine(fadeRoutine);
+
             canvasGroup.interactable = false;
             canvasGroup.blocksRaycasts = false;
             isActive = false;
+
+            fadeRoutine = StartCoroutine(FadeCanvas(1f, 0f));
         }
 
         public virtual void OpenMenu()
@@ -77,11 +103,15 @@ namespace Egglers
             // Extended menu logic before opening menu here
             // Debug.Log($"Opening canvas: {canvas}");
             //canvas.enabled = true;
-            canvasGroup.alpha = 1;
+            if (fadeRoutine != null)
+                StopCoroutine(fadeRoutine);
+
             canvasGroup.interactable = true;
             canvasGroup.blocksRaycasts = true;
             isDirty = true;
             isActive = true;
+
+            fadeRoutine = StartCoroutine(FadeCanvas(0f, 1f));
         }
     }
 }

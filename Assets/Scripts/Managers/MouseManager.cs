@@ -31,7 +31,7 @@ namespace Egglers
         private void MouseUpdate()
         {
             // Debug.Log("[MouseManager] Pointer clicked, before check");
-            
+
             var mouse = Mouse.current;
             if (mouse == null) return;
 

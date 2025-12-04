@@ -13,13 +13,14 @@ namespace Egglers
         public PlantBitManager plantManager;
         public PollutionManager pollutionManager;
         public UIManager uiManager;
+        public GridManager gridManager;
 
         [Header("Game State")]
         public GameState gameState = GameState.HeartPlacement;
 
-        [Header("Configuration")]
-        public int gridWidth = 10;
-        public int gridHeight = 10;
+        // [Header("Configuration")]
+        int gridWidth = 10;
+        int gridHeight = 10;
 
         [Header("Heart Start Components")]
         public int heartStartLeaf = 3;
@@ -66,6 +67,9 @@ namespace Egglers
             {
                 gameGrid = new GridSystem();
             }
+
+            gridWidth = gridManager.width;
+            gridHeight = gridManager.height;
 
             // Ensure the PollutionManager has a reference to the grid
             if (pollutionManager != null)

@@ -1,8 +1,9 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 namespace Egglers
-{   
+{
     /// <summary>
     /// Example menu, make sure these scripts are on objects with a canvas and canvas group component
     /// There should be one canvas for the scene and a subcanvas child for each menu (that subcanvas should have this script on it)
@@ -16,13 +17,25 @@ namespace Egglers
         [SerializeField] private RawImage outcomeImage;
         [SerializeField] private Texture winTexture;
         [SerializeField] private Texture loseTexture;
+        [SerializeField] private float gameOverFadeDuration = 2.2f;
+        [SerializeField] private float openDelay = 1.0f;
+
 
         public override void OpenMenu()
         {
-            base.OpenMenu();
+            StartCoroutine(OpenWithDelay());
+        }
+        private IEnumerator OpenWithDelay()
+        {
+            yield return new WaitForSecondsRealtime(openDelay);   // works even if paused
+
+            fadeDuration = gameOverFadeDuration;                  // slower fade
+            base.OpenMenu();                                      // fade-in happens here
+
             UIManager.Instance.SetCursorVisible(true);
             UpdateOutcomeTexture();
         }
+
 
         private void UpdateOutcomeTexture()
         {
