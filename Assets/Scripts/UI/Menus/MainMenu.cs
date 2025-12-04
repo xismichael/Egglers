@@ -26,6 +26,9 @@ namespace Egglers
 
         private void OnStartClicked()
         {
+            // Play button click sound
+            SoundManager.Instance.PlayButtonClick();
+            
             UIManager.Instance.GoToMenu(GameMenuID.HUD);
             Debug.Log("[MainMenu] Going to HUD Menu");
         }
@@ -33,6 +36,9 @@ namespace Egglers
 
         private void OnCreditsClicked()
         {
+            // Play button click sound
+            SoundManager.Instance.PlayButtonClick();
+            
             UIManager.Instance.GoToMenu(GameMenuID.Credits);
         }
 

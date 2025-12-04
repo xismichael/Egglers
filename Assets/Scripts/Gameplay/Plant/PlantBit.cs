@@ -373,6 +373,9 @@ namespace Egglers
             if (graftingCooldown > 0)
             {
                 Debug.Log($"[PlantBit] Cannot apply graft: Grafting cooldown active ({graftingCooldown} ticks remaining)");
+                
+                // Play error sound
+                SoundManager.Instance.PlayError();
                 return;
             }
 
@@ -380,6 +383,9 @@ namespace Egglers
             if (TotalComponents + graft.TotalComponents > maxComponentCount)
             {
                 Debug.Log($"[PlantBit] Cannot apply graft: Total components ({TotalComponents + graft.TotalComponents}) exceed max ({maxComponentCount})");
+                
+                // Play error sound
+                SoundManager.Instance.PlayError();
                 return;
             }
 
@@ -391,6 +397,9 @@ namespace Egglers
             if (!plantManager.RemoveEnergy(cost))
             {
                 Debug.Log($"[PlantBit] Cannot apply graft: Not enough energy (Current: {plantManager.currentEnergy}, Needed: {cost})");
+                
+                // Play error sound
+                SoundManager.Instance.PlayError();
                 return;
             }
 
@@ -398,6 +407,9 @@ namespace Egglers
             graftedLeafCount += graft.leafCount;
             graftedRootCount += graft.rootCount;
             graftedFruitCount += graft.fruitCount;
+
+            // Play grafting sound on success
+            SoundManager.Instance.PlayGrafting();
 
             Debug.Log($"[PlantBit] Graft applied successfully | New grafted counts -> L:{graftedLeafCount} R:{graftedRootCount} F:{graftedFruitCount}");
 
