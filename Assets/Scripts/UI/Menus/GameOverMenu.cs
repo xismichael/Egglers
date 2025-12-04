@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using TMPro;
 
 namespace Egglers
 {
@@ -17,6 +18,7 @@ namespace Egglers
         [SerializeField] private RawImage outcomeImage;
         [SerializeField] private Texture winTexture;
         [SerializeField] private Texture loseTexture;
+        [SerializeField] private TMP_Text gameover;
         [SerializeField] private float gameOverFadeDuration = 2.2f;
         [SerializeField] private float openDelay = 1.0f;
 
@@ -51,10 +53,12 @@ namespace Egglers
             if (GameManager.Instance.gameState == GameState.Won)
             {
                 targetTexture = winTexture != null ? winTexture : targetTexture;
+                gameover.text = "You Win! \nAll pollution sources destroyed!";
             }
             else if (GameManager.Instance.gameState == GameState.Lost)
             {
                 targetTexture = loseTexture;
+                gameover.text = "You Lose! \nPollution killed your plant!";
             }
 
             outcomeImage.texture = targetTexture;
