@@ -13,50 +13,39 @@ namespace Egglers
     /// </summary>
     public class GameOverMenu : GameMenu
     {
-        // Set buttons in editor
-    //     [SerializeField] private Button startButton;
-    //     [SerializeField] private Button optionsButton;
-    //     [SerializeField] private Button creditsButton;
+        [SerializeField] private RawImage outcomeImage;
+        [SerializeField] private Texture winTexture;
+        [SerializeField] private Texture loseTexture;
 
-    //     protected override void InnerAwake()
-    //     {
-    //         startButton.onClick.AddListener(OnStartClicked);
-    //         optionsButton.onClick.AddListener(OnOptionsClicked);
-    //         creditsButton.onClick.AddListener(OnCreditsClicked);
-    //         base.InnerAwake();
-    //     }
+        public override void OpenMenu()
+        {
+            base.OpenMenu();
+            UIManager.Instance.SetCursorVisible(true);
+            UpdateOutcomeTexture();
+        }
 
-    //     public override void OpenMenu()
-    //     {
-    //         UIManager.Instance.SetCursorVisible(true);
-    //         // GameManager.Instance.SetGamePaused(true);
-    //         base.OpenMenu();
-    //     }
+        private void UpdateOutcomeTexture()
+        {
 
-    //     private void OnStartClicked()
-    //     {
-    //         Debug.Log("[MainMenu] Going to HUD Menu");
-    //         // UIManager.Instance.GoToMenu(GameMenuID.HUD);
-    //     }
+            if (GameManager.Instance == null)
+            {
+                Debug.LogWarning("[GameOverMenu] GameManager instance not available.");
+                return;
+            }
 
-    //     private void OnOptionsClicked()
-    //     {
-    //         Debug.Log("[MainMenu] Going to Options Menu");
-    //         // UIManager.Instance.GoToMenu(GameMenuID.Options);
-    //     }
+            Texture targetTexture = loseTexture;
 
-    //     private void OnCreditsClicked()
-    //     {
-    //         Debug.Log("[MainMenu] Going to Credits Menu");
-    //         // UIManager.Instance.GoToMenu(GameMenuID.Credits);
-    //     }
-        
-    //     private void OnDestroy()
-    //     {
-    //         startButton.onClick.RemoveListener(OnStartClicked);
-    //         optionsButton.onClick.RemoveListener(OnOptionsClicked);
-    //         creditsButton.onClick.RemoveListener(OnCreditsClicked);
-    //     }
+            if (GameManager.Instance.gameState == GameState.Won)
+            {
+                targetTexture = winTexture != null ? winTexture : targetTexture;
+            }
+            else if (GameManager.Instance.gameState == GameState.Lost)
+            {
+                targetTexture = loseTexture;
+            }
+
+            outcomeImage.texture = targetTexture;
+        }
     }
 }
 

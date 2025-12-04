@@ -30,7 +30,6 @@ namespace Egglers
         [SerializeField] private Canvas mainCanvas;
         [SerializeField] private EventSystem eventSystem;
 
-        [SerializeField] public GameObject GameCanvas;
 
         // Singleton implementation
         private static UIManager _instance;
