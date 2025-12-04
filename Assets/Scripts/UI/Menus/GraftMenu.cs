@@ -7,7 +7,7 @@ using UnityEngine.UI;
 namespace Egglers
 {   
     /// <summary>
-    /// Tile menu, replaces context menu
+    /// Graft menu, opened from tile menu
     /// </summary>
     public class GraftMenu : GameMenu
     {
@@ -23,69 +23,66 @@ namespace Egglers
         [SerializeField] private TMP_Text rootText;
         [SerializeField] private TMP_Text fruitText;
         [SerializeField] private TMP_Text tooltipText;
-        [SerializeField] private string defaultTooltip;
+        
+        private GameObject focusedTile;
+        private TileActions tileActions;
 
+        private enum ButtonActions
+        {
+            RemoveGraft,
+            Back,
+            LeafChange,
+            RootChange,
+            FruitChange,
+            None,
+        }
+
+        private GameObject[] interactables;
 
         protected override void InnerAwake()
         {
-            AddEssentialListeners();
-            base.InnerAwake();
-        }
+            removeGraftButton.onClick.AddListener(OnRemoveGraftClicked);
+            backButton.onClick.AddListener(OnBackClicked);
+            leafSlider.onValueChanged.AddListener(OnSliderValueChanged);
+            rootSlider.onValueChanged.AddListener(OnSliderValueChanged);
+            fruitSlider.onValueChanged.AddListener(OnSliderValueChanged);
 
-        
-        public override void OpenMenu()
-        {
-            UIManager.Instance.SetCursorVisible(true);
-            base.OpenMenu();
+            interactables = new GameObject[]
+            {
+                removeGraftButton.gameObject,
+                backButton.gameObject,
+                leafSlider.gameObject,
+                rootSlider.gameObject,
+                fruitSlider.gameObject,
+            };
+
+            for (int i = 0; i < interactables.Length; i++)
+            {
+                // Tooltip hovering events
+                EventTrigger trigger = interactables[i].AddComponent<EventTrigger>();
+
+                ButtonActions action = (ButtonActions) i;
+                var enterEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+                enterEntry.callback.AddListener((_) => ShowTooltip(action));
+                trigger.triggers.Add(enterEntry);
+
+                var exitEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+                exitEntry.callback.AddListener((_) => ShowTooltip(ButtonActions.None));
+                trigger.triggers.Add(exitEntry);
+            }
+
+            ShowTooltip(ButtonActions.None);
+
+            base.InnerAwake();
         }
 
         public override void RefreshMenu()
         {
-            RemoveListeners();
-            AddEssentialListeners();
+            focusedTile = GameManager.Instance.focusedTile;
+            tileActions = GameManager.Instance.focusedTile.GetComponent<TileActions>();
 
             highlightManager.SetSelectedTile(GameManager.Instance.focusedTile);
             highlightManager.SetContextMenuOpen(true);
-
-            tooltipText.gameObject.SetActive(true);
-            tooltipText.text = defaultTooltip;
-            
-            TileActions tileActions = GameManager.Instance.focusedTile.GetComponent<TileActions>();
-
-            // Go over the actions and tie them to the right buttons
-            foreach (var action in tileActions.actions)
-            {
-                // Debug.Log($"[Graft menu] Action type: {action.actionType}");
-                Button triggerButton = action.actionType switch
-                {
-                    TileActionType.RemoveGraft => removeGraftButton,
-                    _ => null
-                };
-
-                if (triggerButton == null) continue;
-
-                triggerButton.onClick.AddListener(() =>
-                {
-                    action.callback?.Invoke(GameManager.Instance.focusedTile);
-                });
-
-                // Tooltip hover
-                EventTrigger trigger = triggerButton.gameObject.AddComponent<EventTrigger>();
-                var enterEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
-                enterEntry.callback.AddListener((_) => ShowTooltip(action));
-                trigger.triggers.Add(enterEntry);
-            }
-
-            int leafVal = (int) leafSlider.value;
-            int rootVal = (int) rootSlider.value;
-            int fruitVal = (int) fruitSlider.value;
-
-            leafText.text = leafVal.ToString();
-            rootText.text = rootVal.ToString();
-            fruitText.text = fruitVal.ToString();
-
-            // Stash the graft data here so it can be used later by the tile action to remove the graft
-            PlantBitManager.Instance.StashGraftData(leafVal, rootVal, fruitVal);
 
             base.RefreshMenu();
         }
@@ -94,27 +91,31 @@ namespace Egglers
         {
             highlightManager.SetContextMenuOpen(false);
             highlightManager.ClearSelectedTile();
-
-            RemoveListeners();
             base.CloseMenu();
         }
 
-        void ShowTooltip(TileActions.TileAction action)
+        public override void OpenMenu()
         {
-            tooltipText.gameObject.SetActive(true);
+            UIManager.Instance.SetCursorVisible(true);
+            base.OpenMenu();
+        }
+
+        void ShowTooltip(ButtonActions action)
+        {
             tooltipText.text = GetTooltipText(action);
         }
 
-        string GetTooltipText(TileActions.TileAction action)
+        string GetTooltipText(ButtonActions action)
         {
-            return action.actionType switch
+            return action switch
             {
-                TileActionType.RemoveGraft => "Remove the graft.",
-                TileActionType.Plant1 => "Select Plant 1.",
-                TileActionType.Plant2 => "Select Plant 2.",
-                TileActionType.Plant3 => "Select Plant 3.",
-                TileActionType.Billboard => "Show a message.",
-                _ => "Select an action."
+                ButtonActions.RemoveGraft => "Remove graft",
+                ButtonActions.Back => "Go back to plant menu",
+                ButtonActions.LeafChange => "Set amount of leaf to take",
+                ButtonActions.RootChange => "Set amount of root to take",
+                ButtonActions.FruitChange => "Set amount of fruit to take",
+                ButtonActions.None => "",
+                _ => ""
             };
         }
 
@@ -126,33 +127,30 @@ namespace Egglers
 
         private void OnRemoveGraftClicked()
         {
+            // Stash the graft data here so it can be used later by the tile action to remove the graft
+            int leafVal = (int) leafSlider.value;
+            int rootVal = (int) rootSlider.value;
+            int fruitVal = (int) fruitSlider.value;
+            PlantBitManager.Instance.StashGraftData(leafVal, rootVal, fruitVal);
+
             UIManager.Instance.GoToMenu(GameMenuID.HUD);
         }
 
         private void OnSliderValueChanged(float val)
         {
-            UIManager.Instance.SetMenuDirty(GameMenuID.GraftMenu);
+            int leafVal = (int) leafSlider.value;
+            int rootVal = (int) rootSlider.value;
+            int fruitVal = (int) fruitSlider.value;
+
+            leafText.text = leafVal.ToString();
+            rootText.text = rootVal.ToString();
+            fruitText.text = fruitVal.ToString();
         }
         
         private void OnDestroy()
         {
-            RemoveListeners();
-        }
-
-        private void RemoveListeners()
-        {
             removeGraftButton.onClick.RemoveAllListeners();
             backButton.onClick.RemoveAllListeners();
-        }
-
-        private void AddEssentialListeners()
-        {
-            // Set default tooltip
-            backButton.onClick.AddListener(OnBackClicked);
-            removeGraftButton.onClick.AddListener(OnRemoveGraftClicked);
-            leafSlider.onValueChanged.AddListener(OnSliderValueChanged);
-            rootSlider.onValueChanged.AddListener(OnSliderValueChanged);
-            fruitSlider.onValueChanged.AddListener(OnSliderValueChanged);
         }
     }
 }
