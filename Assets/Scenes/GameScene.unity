@@ -3954,13 +3954,13 @@ MonoBehaviour:
   plantTickRate: 1
   sourcesSetup:
   - position: {x: 3, y: 3}
-    spreadRate: 30
+    spreadRate: 25
     strength: 6
     resistance: 50
     pulseRate: 4
     dormantDuration: 2
   - position: {x: 6, y: 6}
-    spreadRate: 6
+    spreadRate: 5
     strength: 80
     resistance: 0
     pulseRate: 8
@@ -6200,8 +6200,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Egglers.SoundManager
   musicSource: {fileID: 0}
   sfxSource: {fileID: 0}
-  plantDeathSound: {fileID: 0}
-  pollutionDestroyedSound: {fileID: 0}
+  plantDeathSound: {fileID: 8300000, guid: b82340fd3511b6945977238f8ea28109, type: 3}
+  pollutionDestroyedSound: {fileID: 8300000, guid: 59fb93ea58d5a2b43a2acef7742c6ae9, type: 3}
   graftingSound: {fileID: 8300000, guid: 446bb872cb0e3044bbf59c0a0a0a4adb, type: 3}
   buttonClickSound: {fileID: 8300000, guid: 89dc6bbba2ae6c54a9e835dbe6fbf288, type: 3}
   errorSound: {fileID: 8300000, guid: 1f00a531748c448f2b3b4282c3ab6620, type: 3}
