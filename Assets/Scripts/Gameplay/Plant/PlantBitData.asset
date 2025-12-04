@@ -19,6 +19,8 @@ MonoBehaviour:
   baseSproutCost: 10
   naturalSproutCostScaling: 0.2
   graftedSproutCostScaling: 0.3
+  sproutingChance: 0.05
+  sproutingCooldownDuration: 5
   baseGraftCost: 5
   graftCostScaling: 0.25
   removalCostPerComponent: 1
@@ -26,5 +28,7 @@ MonoBehaviour:
   maxComponentIncrease: 1
   maxComponentBonus: 1.5
   extractionPollutionFactor: 0.05
+  budExtractionFactor: 0.2
   fullGrowthTicks: 5
   tickGrowthCost: 5
+  nippingRefundFraction: 0.5
