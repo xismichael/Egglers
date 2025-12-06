@@ -24,10 +24,10 @@ namespace Egglers
         [SerializeField] private float openDelay = 1.0f;
 
 
-        private void Awake()
-        {
-            resetGameButton.onClick.AddListener(OnResetGameButtonClicked);
-        }
+        // private void Awake()
+        // {
+        //     resetGameButton.onClick.AddListener(OnResetGameButtonClicked);
+        // }
 
         public override void OpenMenu()
         {
