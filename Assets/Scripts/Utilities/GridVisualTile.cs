@@ -16,10 +16,16 @@ namespace Egglers
         [SerializeField] public PollutionManager pollutionManager;
 
         [Header("Plant Objects")]
-        public GameObject plant1;
-        public GameObject plant2;
-        public GameObject plant3;
-        public GameObject pipe;
+        public GameObject motherPlant;
+        public GameObject bud;
+        public GameObject root;
+        public GameObject budInfected;
+        public GameObject budInfectedLeaf;
+        public GameObject budInfectedFruit;
+        public GameObject grown;
+        public GameObject grownFruit;
+        public GameObject grownFruitMax;
+        public GameObject grownLeafMax;
 
         [Header("Billboard / Pollution")]
         public TMP_Text tmp;
@@ -246,10 +252,20 @@ namespace Egglers
         /// </summary>
         public void SetActivePlantByIndex(int index)
         {
-            if (plant1 != null) plant1.SetActive(index == 0);
-            if (plant2 != null) plant2.SetActive(index == 1);
-            if (plant3 != null) plant3.SetActive(index == 2);
+            if (bud != null) bud.SetActive(index == 0);
+            if (grown != null) grown.SetActive(index == 1);
+            if (motherPlant != null) motherPlant.SetActive(index == 2);
+            if (budInfected != null) budInfected.SetActive(index == 3);
+
+            if (grownFruit != null) grownFruit.SetActive(index == 4);
+            if (grownFruitMax != null) grownFruitMax.SetActive(index == 5);
+            if (grownLeafMax != null) grownLeafMax.SetActive(index == 6);
+
+            if (budInfectedLeaf != null) budInfectedLeaf.SetActive(index == 7);
+            if (budInfectedFruit != null) budInfectedFruit.SetActive(index == 8);
         }
+
+
 
         /// <summary>
         /// Sets billboard or TMP text for the tile.
@@ -270,15 +286,72 @@ namespace Egglers
         {
             if (bit == null)
             {
-                SetActivePlantByIndex(-1); // disable all
+                SetActivePlantByIndex(-1);
                 return;
             }
 
-            // Example: enable plant1 for heart, plant2 for normal, plant3 for special
-            if (bit.isHeart) SetActivePlantByIndex(2);
-            else if (bit.phase == PlantBitPhase.Grown) SetActivePlantByIndex(1);
-            else if (bit.phase == PlantBitPhase.Bud) SetActivePlantByIndex(0);
-            else SetActivePlantByIndex(-1);
+            // Heart always overrides visuals
+            if (bit.isHeart)
+            {
+                SetActivePlantByIndex(2);
+                return;
+            }
+
+            // Determine which component type is dominant
+            int leaf = bit.leafCount + bit.graftedLeafCount;
+            int root = bit.rootCount + bit.graftedRootCount;
+            int fruit = bit.fruitCount + bit.graftedFruitCount;
+
+            string dominant = "root";
+
+            if (leaf >= root && leaf >= fruit) dominant = "leaf";
+            else if (fruit >= leaf && fruit >= root) dominant = "fruit";
+
+            // Handle infection phase first
+            if (bit.phase == PlantBitPhase.FullyInfected)
+            {
+                switch (dominant)
+                {
+                    case "leaf":
+                        SetActivePlantByIndex(7); // budInfectedLeaf
+                        break;
+
+                    case "fruit":
+                        SetActivePlantByIndex(8); // budInfectedFruit
+                        break;
+
+                    case "root":
+                        SetActivePlantByIndex(3); // budInfected
+                        break;
+                }
+                return;
+            }
+
+            // Handle non-infected phases
+            switch (bit.phase)
+            {
+                case PlantBitPhase.Bud:
+                    // All buds use the same prefab for now
+                    SetActivePlantByIndex(0);
+                    break;
+
+                case PlantBitPhase.Grown:
+                    switch (dominant)
+                    {
+                        case "leaf":
+                            SetActivePlantByIndex(6); // grownLeafMax
+                            break;
+
+                        case "fruit":
+                            SetActivePlantByIndex(4); // grownFruit
+                            break;
+
+                        case "root":
+                            SetActivePlantByIndex(1); // grown
+                            break;
+                    }
+                    break;
+            }
         }
 
         #endregion
@@ -293,7 +366,7 @@ namespace Egglers
 
             if (hasPollution) return;
 
-            plant3.SetActive(true);
+            motherPlant.SetActive(true);
             isShowingHeartPreview = true;
         }
 
@@ -301,7 +374,7 @@ namespace Egglers
         {
             if (!isShowingHeartPreview) return;
 
-            plant3.SetActive(false);
+            motherPlant.SetActive(false);
             isShowingHeartPreview = false;
         }
 
