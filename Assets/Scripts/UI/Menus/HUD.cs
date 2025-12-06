@@ -564,6 +564,8 @@ namespace Egglers
                 ShowLogMessage($"Plant nipped! Refunded {refund:F1} energy");
                 ClosePlantInfo();
             }
+
+            SoundManager.Instance.PlayButtonClick();
         }
 
         private void OnSproutButtonClicked()
@@ -588,6 +590,8 @@ namespace Egglers
                 plant.AttemptSprout(true);
                 ShowLogMessage($"Sprouted! Cost: {cost:F0} energy");
             }
+
+            SoundManager.Instance.PlayButtonClick();
         }
 
         public void ShowLogMessage(string message)
@@ -610,6 +614,8 @@ namespace Egglers
 
             // Update button text to reflect current mode
             UpdateGraftModeButtonText();
+
+            SoundManager.Instance.PlayButtonClick();
         }
 
         private void OnGraftApplyClicked()
@@ -709,6 +715,8 @@ namespace Egglers
 
             // Update the scrollbars to reflect new state
             UpdateGraftScrollbars(resetValues: false); // Don't reset again, we just did it
+
+            SoundManager.Instance.PlayButtonClick();
         }
 
         private void UpdateGraftScrollbars(bool resetValues = false)

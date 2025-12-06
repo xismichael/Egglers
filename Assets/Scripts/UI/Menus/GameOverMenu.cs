@@ -19,9 +19,15 @@ namespace Egglers
         [SerializeField] private Texture winTexture;
         [SerializeField] private Texture loseTexture;
         [SerializeField] private TMP_Text gameover;
+        [SerializeField] private Button resetGameButton;
         [SerializeField] private float gameOverFadeDuration = 2.2f;
         [SerializeField] private float openDelay = 1.0f;
 
+
+        private void Awake()
+        {
+            resetGameButton.onClick.AddListener(OnResetGameButtonClicked);
+        }
 
         public override void OpenMenu()
         {
@@ -37,7 +43,6 @@ namespace Egglers
             UIManager.Instance.SetCursorVisible(true);
             UpdateOutcomeTexture();
         }
-
 
         private void UpdateOutcomeTexture()
         {
@@ -62,6 +67,16 @@ namespace Egglers
             }
 
             outcomeImage.texture = targetTexture;
+        }
+
+        private void OnResetGameButtonClicked()
+        {
+            GameManager.Instance.ResetGame();
+        }
+
+        private void OnDestroy()
+        {
+            resetGameButton.onClick.RemoveListener(OnResetGameButtonClicked);
         }
     }
 }
