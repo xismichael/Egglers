@@ -30,16 +30,8 @@ namespace Egglers
 
         private void MouseUpdate()
         {
-            // Debug.Log("[MouseManager] Pointer clicked, before check");
-
             var mouse = Mouse.current;
             if (mouse == null) return;
-
-            // Debug.Log("[MouseManager] Pointer clicked");
-
-            // Only block clicks if over the context menu itself
-            // if (IsPointerOverContextMenu())
-            //     return;
 
             if (!mouse.leftButton.wasPressedThisFrame) return;
 
@@ -50,14 +42,27 @@ namespace Egglers
             GameObject tile = CameraManager.Instance.RaycastCheck(mousePos, "Tile");
             if (tile == null) return;
 
-            Debug.Log($"[MouseManager] New Tile is {tile.GetComponent<GridVisualTile>().coords}");
+            //Debug.Log($"[MouseManager] New Tile is {tile.GetComponent<GridVisualTile>().coords}");
 
-            CameraManager.Instance.PanToTarget(tile.transform.position);
-            CameraManager.Instance.ZoomToTarget(0.3f);
+    
 
             GameManager.Instance.focusedTile = tile;
-            UIManager.Instance.SetMenuDirty(GameMenuID.TileMenu);
-            UIManager.Instance.GoToMenu(GameMenuID.TileMenu);
+
+            if (GameManager.Instance.gameState == GameState.HeartPlacement)
+            {
+                TileActions tileActions = tile.GetComponent<TileActions>();
+                if (tileActions != null)
+                {
+                    tileActions.InvokeAction(TileActionType.PlaceHeart);
+                }
+            }
+            else if (GameManager.Instance.gameState == GameState.Playing)
+            {
+                CameraManager.Instance.PanToTarget(tile.transform.position);
+                CameraManager.Instance.ZoomToTarget(0.3f);
+                UIManager.Instance.OpenPlantInfo();
+
+            }
         }
     }
 }

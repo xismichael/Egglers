@@ -23,7 +23,9 @@ namespace Egglers
             foreach (var action in tileActions.actions)
             {
                 action.callback = GetCallbackForType(action.actionType);
-                if (action.callback == null)
+                
+                // RemoveGraft is handled by GraftMenu UI, skip warning for it
+                if (action.callback == null && action.actionType != TileActionType.RemoveGraft)
                     Debug.LogWarning($"Unhandled tile action type {action.actionType} on {name}");
             }
         }
@@ -43,7 +45,7 @@ namespace Egglers
                 TileActionType.Debug => DebugTile,
                 TileActionType.NipBud => NipBud,
                 TileActionType.ApplyGraft => ApplyGraft,
-                TileActionType.RemoveGraft => RemoveGraft,
+                // RemoveGraft is handled directly by GraftMenu UI
                 _ => null
             };
         }
@@ -168,24 +170,6 @@ namespace Egglers
 
             plantBitManager.ApplyGraftAtPosition(plant.position);
 
-            GridEvents.PlantUpdated(plant.position);
-        }
-
-        private void RemoveGraft(GameObject tile)
-        {
-            if (tile == null || plantBitManager == null) return;
-
-            GridVisualTile visual = tile.GetComponent<GridVisualTile>();
-            if (visual == null) return;
-
-            PlantBit plant = plantBitManager.gameGrid.GetEntity<PlantBit>(visual.coords);
-            if (plant == null)
-            {
-                Debug.Log("[RemoveGraft] No plant on this tile.");
-                return;
-            }
-
-            plantBitManager.RemoveGraftAtPosition(plant.position);
             GridEvents.PlantUpdated(plant.position);
         }
 

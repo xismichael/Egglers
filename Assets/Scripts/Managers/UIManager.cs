@@ -123,5 +123,23 @@ namespace Egglers
 
             return false;
         }
+
+        public void OpenPlantInfo()
+        {
+            HUD hud = Menus[(int)GameMenuID.HUD] as HUD;
+            if (hud != null)
+            {
+                hud.OpenPlantInfo();
+            }
+        }
+
+        public void ClosePlantInfo()
+        {
+            HUD hud = Menus[(int)GameMenuID.HUD] as HUD;
+            if (hud != null)
+            {
+                hud.ClosePlantInfo();
+            }
+        }
     }
 }

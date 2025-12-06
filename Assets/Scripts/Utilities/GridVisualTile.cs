@@ -49,6 +49,8 @@ namespace Egglers
         [Header("Grid Info")]
         public Vector2Int coords;
 
+        private bool isShowingHeartPreview = false;
+
         private void Awake()
         {
             baseColorId = Shader.PropertyToID(baseColorProperty);
@@ -280,6 +282,28 @@ namespace Egglers
         }
 
         #endregion
+
+        public void ShowHeartPreview()
+        {
+            if (isShowingHeartPreview) return;
+
+            bool hasPollution =
+                PollutionManager.Instance.gameGrid.GetEntity<PollutionTile>(coords) != null ||
+                PollutionManager.Instance.gameGrid.GetEntity<PollutionSource>(coords) != null;
+
+            if (hasPollution) return;
+
+            plant3.SetActive(true);
+            isShowingHeartPreview = true;
+        }
+
+        public void HideHeartPreview()
+        {
+            if (!isShowingHeartPreview) return;
+
+            plant3.SetActive(false);
+            isShowingHeartPreview = false;
+        }
 
     }
 }

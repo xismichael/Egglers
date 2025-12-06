@@ -1,13 +1,17 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Analytics;
+using UnityEngine.Rendering;
+using UnityEngine.UIElements;
 
 namespace Egglers
 {
     public enum PlantBitPhase
     {
-        Bud,        // Consuming resources to grow
-        Grown       // Fully functional, can sprout
+        Bud,            // Consuming resources to grow
+        Grown,          // Fully functional, can sprout
+        FullyInfected   // Virus has fully taken over
     }
 
     public class PlantBit
@@ -43,21 +47,23 @@ namespace Egglers
         public float extractionRate;
         public float energyStorage;
 
+        public float maintenanceCost; // Fixed typo
+
         // Derived stats (calculated)
         public int TotalNaturalComponents => leafCount + rootCount + fruitCount;
         public int TotalGraftedComponents => graftedLeafCount + graftedRootCount + graftedFruitCount;
         public int TotalComponents => TotalNaturalComponents + TotalGraftedComponents;
 
-        // Cooldowns
-        public int graftingCooldown;
-        public int sproutingCooldown;
+        // Infection tracking
+        public bool isInfected = false; // Virus is spreading through this plant (process)
+        // Note: phase == Infected means virus has fully taken over (terminal state)
+        public Coroutine infectionCoroutine; // Reference to active infection spread coroutine
 
-        public float leafEnergyGainMultiplier = 1f; // energy per leaf per tick
-        public float energyPerRootPerTick = 2f; // energy consumed per root to extract pollution
+
 
 
         public PlantBit(Vector2Int pos, PlantBitData newData, PlantBitManager manager,
-            bool heart = false, int startLeaf = 0, int startRoot = 0, int startFruit = 0, int startMaxComponent = 0)
+            bool heart = false, int startLeaf = 0, int startRoot = 0, int startFruit = 0)
         {
             Debug.Log($"[PlantBit] Created heart={heart} at {pos}");
 
@@ -78,11 +84,9 @@ namespace Egglers
             parent = null;
             children = new List<PlantBit>();
 
-            phase = PlantBitPhase.Bud;
+            phase = PlantBitPhase.Grown;
             growthProgress = 0;
 
-            maxComponentCount = Mathf.Max(startMaxComponent, 1);
-            sproutCost = CalculateSproutCost();
 
             UpdateStats();
 
@@ -118,9 +122,6 @@ namespace Egglers
             phase = PlantBitPhase.Bud;
             growthProgress = 0;
 
-            maxComponentCount = CalculateMaxComponentCount();
-            sproutCost = CalculateSproutCost();
-
             UpdateStats();
 
             // Register self in the grid
@@ -130,31 +131,48 @@ namespace Egglers
 
         private int CalculateMaxComponentCount()
         {
-            int parentTotal = parent != null ? parent.TotalComponents : 0;
-            int bonus = Mathf.Max(data.maxComponentIncrease, Mathf.CeilToInt(parentTotal * data.maxComponentBonus));
-            return parentTotal + bonus;
+
+            //going to be just total natural compoents + 2 for now
+            return TotalNaturalComponents + 2;
+            // int parentTotal = parent != null ? parent.TotalComponents : 0;
+            // int bonus = Mathf.Max(data.maxComponentIncrease, Mathf.CeilToInt(parentTotal * data.maxComponentBonus));
+            // return parentTotal + bonus;
         }
 
         private float CalculateSproutCost()
         {
-            float naturalTax = TotalNaturalComponents * data.naturalSproutCostScaling;
-            float graftedTax = TotalGraftedComponents * data.graftedSproutCostScaling;
-            return data.baseSproutCost + naturalTax + graftedTax;
+            //for now just going to be the a value to the power of total components  plus a base value
+            return Mathf.Pow(1.5f, TotalComponents) * 1.5f;
+            
+            // float naturalTax = TotalNaturalComponents * data.naturalSproutCostScaling;
+            // float graftedTax = TotalGraftedComponents * data.graftedSproutCostScaling;
+            // return data.baseSproutCost + naturalTax + graftedTax;
+        }
+
+        private float CalculateMaintenanceCost()
+        {
+            // Heart has no maintenance cost
+            if (isHeart) return 0f;
+            
+            //for now just going to be the a value to the power of total components  plus a base value
+            return Mathf.Pow(1.4f, TotalComponents)/2;
         }
 
         private float CalculateStat(int natural, int grafted, float baseMultiplier)
         {
-            float naturalPower = Mathf.Pow(natural, data.naturalComponentPower) * baseMultiplier;
+            float naturalPower = Mathf.Pow(natural, 1.5f) * baseMultiplier;
             float graftedPower = grafted * baseMultiplier; // linear scaling
             return naturalPower + graftedPower;
         }
 
         public void UpdateStats()
         {
-            attackDamage = CalculateStat(leafCount, graftedLeafCount, data.leafMultiplier);
-            extractionRate = CalculateStat(rootCount, graftedRootCount, data.rootMultiplier);
+            attackDamage = CalculateStat(rootCount, graftedRootCount, data.rootMultiplier);
+            extractionRate = CalculateStat(leafCount, graftedLeafCount, data.leafMultiplier);
             energyStorage = CalculateStat(fruitCount, graftedFruitCount, data.fruitMultiplier);
             sproutCost = CalculateSproutCost();
+            maxComponentCount = CalculateMaxComponentCount();
+            maintenanceCost = CalculateMaintenanceCost(); 
         }
 
         public void TransitionToGrownPhase()
@@ -165,13 +183,18 @@ namespace Egglers
             UpdateStats();
             plantManager.AddMaxEnergy(energyStorage);
 
-            // AttemptSprout();
+            AttemptSprout(false);
 
             GridEvents.PlantUpdated(position);
         }
 
-        private void AttemptSprout()
+        public void AttemptSprout(bool haveCost = true)
         {
+            if (phase != PlantBitPhase.Grown || isInfected) {
+                Debug.LogWarning($"[PlantBit] AttemptSprout failed at {position}, plant is not grown or healthy");
+                SoundManager.Instance.PlayError();
+                return;
+            }
             Debug.Log($"[PlantBit] AttemptSprout at {position}");
 
             GridSystem grid = plantManager.gameGrid;
@@ -190,6 +213,13 @@ namespace Egglers
                 return;
             }
 
+            // Check if we can afford sprouting
+            if (haveCost && !plantManager.RemoveEnergy(sproutCost))
+            {
+                Debug.Log($"[PlantBit] Not enough energy to sprout (cost: {sproutCost})");
+                return;
+            }
+
             // Only attempt sprout if tile is clean
             List<Vector2Int> neighbors = grid.GetNeighbors(position);
             foreach (Vector2Int neighborPos in neighbors)
@@ -197,57 +227,77 @@ namespace Egglers
                 // Allow sprouting as long as no PlantBit is already present
                 bool canSprout = grid.GetEntity<PlantBit>(neighborPos) == null;
 
-                Debug.Log($"[PlantBit] Checking sprout spot {neighborPos} | canSprout={canSprout}");
+                //Debug.Log($"[PlantBit] Checking sprout spot {neighborPos} | canSprout={canSprout}");
 
-                if (canSprout && plantManager.RemoveEnergy(sproutCost))
+                if (canSprout)
                 {
-                    Debug.Log($"[PlantBit] Sprouting at {neighborPos} (cost: {sproutCost})");
+                    //Debug.Log($"[PlantBit] Sprouting at {neighborPos} (cost: {sproutCost})");
                     plantManager.CreateSprout(this, neighborPos);
-                }
-                else if (canSprout)
-                {
-                    Debug.Log($"[PlantBit] Not enough energy to sprout at {neighborPos} (cost: {sproutCost})");
-                    return;
+                    Debug.Log($"[PlantBit] Sprouted at {neighborPos}");
                 }
             }
 
-            sproutingCooldown = data.sproutingCooldownDuration;
-            Debug.Log($"[PlantBit] Sprouting cooldown set to {sproutingCooldown}");
+            
+            //Debug.Log($"[PlantBit] Sprouting cooldown set to {sproutingCooldown}");
         }
 
-        public void TickUpdate()
+        //all the update handled in plantManager for now
+
+        
+        // public void TickUpdate()
+        // {
+        //     if (phase == PlantBitPhase.FullyInfected)
+        //     {
+        //         //passive infection spread (terminal state - fully infected)
+        //         //InfectionSpread();
+        //         return;
+        //     } 
+
+        //     if (phase == PlantBitPhase.Bud)
+        //     {
+        //         // Debug.Log($"[PlantBit] TickUpdate BUD at {position} | progress: {growthProgress}/{data.fullGrowthTicks}");
+
+        //         if (!isInfected && plantManager.RemoveEnergy(maintenanceCost * 2f))
+        //         {
+        //             growthProgress++;
+        //             if (growthProgress >= data.fullGrowthTicks)
+        //             {
+        //                 //Debug.Log($"[PlantBit] Bud fully grown! Transitioning at {position}");
+        //                 TransitionToGrownPhase();
+        //             }
+        //         }
+        //     }
+
+        //     if (phase == PlantBitPhase.Grown)
+        //     {
+        //         // Passive energy from leaves
+        //         PassiveEnergyGain();
+        //         if (!isInfected && plantManager.RemoveEnergy(maintenanceCost))
+        //         {
+        //             ExtractEnergy();
+        //         }
+        //     }
+        // }
+
+        public void InfectionSpread(float spreadTimer)
         {
-            ExtractEnergy();
+            // Only start if not already spreading
+            if (infectionCoroutine != null) return;
 
-            if (phase == PlantBitPhase.Bud)
-            {
-                // Debug.Log($"[PlantBit] TickUpdate BUD at {position} | progress: {growthProgress}/{data.fullGrowthTicks}");
-
-                if (plantManager.RemoveEnergy(data.tickGrowthCost))
-                {
-                    growthProgress++;
-                    if (growthProgress >= data.fullGrowthTicks)
-                    {
-                        Debug.Log($"[PlantBit] Bud fully grown! Transitioning at {position}");
-                        TransitionToGrownPhase();
-                    }
-                }
-            }
-            else if (phase == PlantBitPhase.Grown)
-            {
-                // Passive energy from leaves
-                float leafEnergyGain = leafCount * 1f + graftedLeafCount * 2f; // adjust multiplier as needed
-                plantManager.AddEnergy(leafEnergyGain);
-                ExtractEnergy();
-
-                // Handle cooldowns
-                if (graftingCooldown > 0) graftingCooldown--;
-                if (sproutingCooldown > 0) sproutingCooldown--;
-                else if (UnityEngine.Random.value < data.sproutingChance)
-                {
-                    AttemptSprout();
-                }
-            }
+            // Start the infection spread coroutine in the manager
+            // Timer determines how long until virus spreads to adjacent plants
+            infectionCoroutine = plantManager.StartInfectionSpread(this, spreadTimer);
+        }
+        public void PassiveEnergyGain()
+        {
+            float multiplier = 0.3f / (isInfected ? 2f : 1f);
+            
+            // Heart has doubled extraction rate
+            if (isHeart) multiplier *= 2f;
+            
+            // Passive energy from leaves
+            float energyGain = extractionRate * multiplier;
+            plantManager.AddEnergy(energyGain);
         }
 
         public void ExtractEnergy()
@@ -258,41 +308,15 @@ namespace Egglers
             List<Vector2Int> tilesToScan = grid.GetNeighbors(position);
             tilesToScan.Add(position);
 
-            float baseDamage = (rootCount + graftedRootCount) * data.rootMultiplier;
-            float energyCostPerDamage = 0.2f; // customizable, can scale with roots
-
             foreach (Vector2Int pos in tilesToScan)
             {
                 PollutionTile tile = grid.GetEntity<PollutionTile>(pos);
                 PollutionSource source = grid.GetEntity<PollutionSource>(pos);
-
-                if (tile != null)
-                {
-                    float energyCost = baseDamage * energyCostPerDamage;
-                    if (!plantManager.RemoveEnergy(energyCost))
-                    {
-                        // Debug.Log($"[PlantBit] Not enough energy to attack PollutionTile at {pos}");
-                        continue; // skip if not enough energy
-                    }
-
-                    tile.TakeDamage(baseDamage);
-                    // plantManager.AddEnergy(baseDamage); // optional: gain energy from cleaned pollution
-                    // Debug.Log($"[PlantBit] Attacked PollutionTile at {pos} | Damage: {baseDamage}, Energy spent: {energyCost}");
-                }
-
-                if (source != null)
-                {
-                    float energyCost = baseDamage * energyCostPerDamage;
-                    if (!plantManager.RemoveEnergy(energyCost))
-                    {
-                        Debug.Log($"[PlantBit] Not enough energy to attack PollutionSource at {pos}");
-                        continue;
-                    }
-
-                    source.TakeDamage(baseDamage);
-                    plantManager.AddEnergy(baseDamage);
-                    Debug.Log($"[PlantBit] Attacked PollutionSource at {pos} | Damage: {baseDamage}, Energy spent: {energyCost}");
-                }
+                float realDamage = 0;
+                if (tile == null && source == null) continue;
+                if (tile != null) realDamage = tile.TakeDamage(attackDamage);
+                if (source != null) realDamage = source.TakeDamage(attackDamage);
+                if (realDamage > 0f) plantManager.AddEnergy(realDamage / 2);
             }
         }
 
@@ -300,8 +324,27 @@ namespace Egglers
         {
             Debug.Log($"[PlantBit] KILL at {position}");
 
-            // Remove energy contribution
-            plantManager.RemoveMaxEnergy(energyStorage);
+            // Stop infection coroutine if running
+            if (infectionCoroutine != null)
+            {
+                plantManager.StopCoroutine(infectionCoroutine);
+                infectionCoroutine = null;
+                Debug.Log($"[PlantBit] Stopped infection coroutine for {position}");
+            }
+
+            // Unfreeze pollution at this position if it exists
+            PollutionTile tile = plantManager.gameGrid.GetEntity<PollutionTile>(position);
+            if (tile != null)
+            {
+                tile.isFrozen = false;
+                GridEvents.PollutionUpdated(position);
+            }
+
+            // Remove energy contribution (only if plant was grown and contributed)
+            if (phase == PlantBitPhase.Grown)
+            {
+                plantManager.RemoveMaxEnergy(energyStorage);
+            }
 
             // Detach from parent
             parent?.children.Remove(this);
@@ -318,7 +361,7 @@ namespace Egglers
             // Remove self from grid using type-safe removal
             plantManager.gameGrid.RemoveEntity<PlantBit>(this);
 
-            Debug.Log($"[PlantBit] Removed from grid at {position}");
+            //Debug.Log($"[PlantBit] Removed from grid at {position}");
         }
 
         public void RemoveGraft(int leaf, int root, int fruit)
@@ -332,71 +375,60 @@ namespace Egglers
                 return;
             }
 
-            if (graftingCooldown > 0)
-            {
-                SoundManager.Instance.PlayError();
-                Debug.LogWarning("Cannot remove graft, plant is on grafting cooldown");
-                return;
-            }
+            //cannot graft grafted components
+            int realLeafAmount = Mathf.Min(leaf, leafCount);
+            int realRootAmount = Mathf.Min(root, rootCount);
+            int realFruitAmount = Mathf.Min(fruit, fruitCount);
 
             // Check if plant has enough grafts to remove
-            if (leaf > (leafCount + graftedLeafCount) || root > (rootCount + graftedRootCount) || fruit > (fruitCount + graftedFruitCount))
-            {
-                Debug.LogWarning("Cannot remove graft, trying to remove more grafts than available");
-                SoundManager.Instance.PlayError();
+            //auto assume there is enoguh, for gameplay reasons
 
-                return;
-            }
+
+            // if (leaf > (leafCount + graftedLeafCount) || root > (rootCount + graftedRootCount) || fruit > (fruitCount + graftedFruitCount))
+            // {
+            //     Debug.LogWarning("Cannot remove graft, trying to remove more grafts than available");
+            //     SoundManager.Instance.PlayError();
+
+            //     return;
+            // }
 
             // Cost to remove
-            int totalRemoved = leaf + root + fruit;
+            int totalRemoved = realLeafAmount + realRootAmount + realFruitAmount;
             float removalCost = totalRemoved * data.removalCostPerComponent;
-            if (!plantManager.RemoveEnergy(0))
+            if (!plantManager.RemoveEnergy(removalCost))
             {
                 Debug.LogWarning("Cannot remove graft, not enough resources to remove components");
                 SoundManager.Instance.PlayError();
                 return;
             }
 
-            plantManager.graftBuffer.Update(leaf, root, fruit);
+
+            plantManager.graftBuffer.Update(realLeafAmount, realRootAmount, realFruitAmount);
 
             // Remove from plant
-            graftedLeafCount -= leaf;
-            graftedRootCount -= root;
-            graftedFruitCount -= fruit;
+            leafCount -= realLeafAmount;
+            rootCount -= realRootAmount;
+            fruitCount -= realFruitAmount;
             UpdateStats();
-
-            // Start cooldown
-            graftingCooldown = data.graftCooldownDuration;
         }
 
-        public void ApplyGraft(GraftBuffer graft)
+        //assuming applyGraft always gives you the right amount of components
+        public void ApplyGraft(int leaf, int root, int fruit)
         {
-            Debug.Log($"[PlantBit] Attempting to ApplyGraft at {position} | Graft: L{graft.leafCount} R{graft.rootCount} F{graft.fruitCount}");
+            //Debug.Log($"[PlantBit] Attempting to ApplyGraft at {position} | Graft: L{graft.leafCount} R{graft.rootCount} F{graft.fruitCount}");
 
-            // Check grafting cooldown
-            if (graftingCooldown > 0)
+            if (leaf + root + fruit + TotalComponents > maxComponentCount)
             {
-                Debug.Log($"[PlantBit] Cannot apply graft: Grafting cooldown active ({graftingCooldown} ticks remaining)");
-
-                // Play error sound
+                Debug.LogWarning("Cannot apply graft, trying to apply more components than available");
                 SoundManager.Instance.PlayError();
                 return;
             }
 
-            // Check max component limit
-            if (TotalComponents + graft.TotalComponents > maxComponentCount)
-            {
-                Debug.Log($"[PlantBit] Cannot apply graft: Total components ({TotalComponents + graft.TotalComponents}) exceed max ({maxComponentCount})");
 
-                // Play error sound
-                SoundManager.Instance.PlayError();
-                return;
-            }
 
             // Calculate energy cost
-            float cost = data.baseGraftCost * (1 + TotalComponents * data.graftCostScaling);
-            Debug.Log($"[PlantBit] Calculated graft cost: {cost} energy");
+            float cost = (leaf + root + fruit) * data.removalCostPerComponent;
+            //Debug.Log($"[PlantBit] Calculated graft cost: {cost} energy");
 
             // Attempt to pay energy
             if (!plantManager.RemoveEnergy(cost))
@@ -409,26 +441,23 @@ namespace Egglers
             }
 
             // Apply graft
-            graftedLeafCount += graft.leafCount;
-            graftedRootCount += graft.rootCount;
-            graftedFruitCount += graft.fruitCount;
+            graftedLeafCount += leaf;
+            graftedRootCount += root;
+            graftedFruitCount += fruit;
 
             // Play grafting sound on success
             SoundManager.Instance.PlayGrafting();
 
-            Debug.Log($"[PlantBit] Graft applied successfully | New grafted counts -> L:{graftedLeafCount} R:{graftedRootCount} F:{graftedFruitCount}");
+            ///Debug.Log($"[PlantBit] Graft applied successfully | New grafted counts -> L:{graftedLeafCount} R:{graftedRootCount} F:{graftedFruitCount}");
 
             // Update derived stats
             UpdateStats();
-            Debug.Log($"[PlantBit] Stats updated after graft | AttackDamage: {attackDamage}, ExtractionRate: {extractionRate}, EnergyStorage: {energyStorage}");
+            //Debug.Log($"[PlantBit] Stats updated after graft | AttackDamage: {attackDamage}, ExtractionRate: {extractionRate}, EnergyStorage: {energyStorage}");
 
-            // Clear the manager's graft buffer
-            plantManager.graftBuffer.Clear();
-            Debug.Log("[PlantBit] Graft buffer cleared in PlantBitManager");
-
-            // Set grafting cooldown
-            graftingCooldown = data.graftCooldownDuration;
-            Debug.Log($"[PlantBit] Grafting cooldown set to {graftingCooldown} ticks");
+            // Remove grafted components from the buffer
+            plantManager.graftBuffer.Update(-leaf, -root, -fruit);
+            //Debug.Log("[PlantBit] Graft buffer updated after applying graft");
+    
         }
 
         public void Nip()
@@ -440,11 +469,11 @@ namespace Egglers
                 return;
             }
 
-            float refund = sproutCost * 0.5f;
+            float refund = sproutCost * 0.25f;
 
-            Debug.Log($"[PlantBit] Killing plant at {position}, refunding {refund} energy");
+            //Debug.Log($"[PlantBit] Killing plant at {position}, refunding {refund} energy");
 
-            plantManager.AddEnergy(refund);
+            if (!isInfected) plantManager.AddEnergy(refund);
             plantManager.KillPlantBit(this);
         }
     }

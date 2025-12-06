@@ -32,18 +32,44 @@ namespace Egglers
         [SerializeField] private TMP_Text pollutionStrengthText;
         [SerializeField] private TMP_Text pollutionResistanceText;
 
+        [Header("Plant Info Panel")]
+        [SerializeField] private GameObject plantInfo;
+        [SerializeField] private TMP_Text plantInfoExtractionText;
+        [SerializeField] private TMP_Text plantInfoAttackText;
+        [SerializeField] private TMP_Text plantInfoStorageText;
+        [SerializeField] private TMP_Text plantInfoMaxComponentsText;
+        [SerializeField] private TMP_Text plantInfoInfectionText;
+        [SerializeField] private UnityEngine.UI.Button nipButton;
+        [SerializeField] private UnityEngine.UI.Button sproutButton;
+
+        [Header("Log Message")]
+        [SerializeField] private TMP_Text logMessageText;
+
         private GameObject currentHoveredTile = null;
 
         protected override void InnerAwake()
         {
             base.InnerAwake();
+            if (plantInfo != null)
+            {
+                plantInfo.SetActive(false);
+            }
+
+            if (nipButton != null)
+            {
+                nipButton.onClick.AddListener(OnNipButtonClicked);
+            }
+
+            if (sproutButton != null)
+            {
+                sproutButton.onClick.AddListener(OnSproutButtonClicked);
+            }
         }
 
         protected override void InnerUpdate()
         {
             base.InnerUpdate();
             
-            // Update HUD every frame while active
             if (isActive)
             {
                 UpdateHUD();
@@ -257,34 +283,49 @@ namespace Egglers
         {
             if (plantPhaseText != null)
             {
-                string phaseStr = plant.phase == PlantBitPhase.Bud ? "Bud" : "Grown";
+                string phaseStr = plant.phase == PlantBitPhase.Bud ? "Bud" : 
+                                  plant.phase == PlantBitPhase.Grown ? "Grown" : 
+                                  plant.phase == PlantBitPhase.FullyInfected ? "FullyInfected" : "Unknown";
                 if (plant.isHeart) phaseStr = "Heart";
+                if (plant.isInfected) phaseStr += " (Infected)";
                 plantPhaseText.text = $"Phase: {phaseStr}";
             }
 
             if (plantLeafText != null)
             {
-                int total = plant.leafCount + plant.graftedLeafCount;
                 plantLeafText.text = $"Leaf: {plant.leafCount}";
                 if (plant.graftedLeafCount > 0)
                     plantLeafText.text += $" (+{plant.graftedLeafCount})";
+                plantLeafText.text += $" | Energy: {plant.extractionRate:F1}";
             }
 
             if (plantRootText != null)
             {
-                int total = plant.rootCount + plant.graftedRootCount;
                 plantRootText.text = $"Root: {plant.rootCount}";
                 if (plant.graftedRootCount > 0)
                     plantRootText.text += $" (+{plant.graftedRootCount})";
+                plantRootText.text += $" | Attack: {plant.attackDamage:F1}";
             }
 
             if (plantFruitText != null)
             {
-                int total = plant.fruitCount + plant.graftedFruitCount;
                 plantFruitText.text = $"Fruit: {plant.fruitCount}";
                 if (plant.graftedFruitCount > 0)
                     plantFruitText.text += $" (+{plant.graftedFruitCount})";
+                plantFruitText.text += $" | Storage: {plant.energyStorage:F1}";
             }
+
+            // Log detailed debug info to console
+            Debug.Log($"[HUD] Plant at {plant.position} | " +
+                      $"Phase: {plant.phase} | " +
+                      $"IsHeart: {plant.isHeart} | " +
+                      $"IsInfected: {plant.isInfected} | " +
+                      $"L:{plant.leafCount}+{plant.graftedLeafCount} " +
+                      $"R:{plant.rootCount}+{plant.graftedRootCount} " +
+                      $"F:{plant.fruitCount}+{plant.graftedFruitCount} | " +
+                      $"Attack:{plant.attackDamage:F2} Energy:{plant.extractionRate:F2} Storage:{plant.energyStorage:F2} | " +
+                      $"SproutCost:{plant.sproutCost:F2} MaintenanceCost:{plant.maintenanceCost:F2} | " +
+                      $"MaxComponents:{plant.maxComponentCount}");
         }
 
         private void UpdatePollutionHoverInfo(PollutionTile pollution, bool isSource)
@@ -356,6 +397,143 @@ namespace Egglers
         {
             ClearPlantHoverInfo();
             ClearPollutionHoverInfo();
+        }
+
+        public void OpenPlantInfo()
+        {
+            if (plantInfo != null)
+            {
+                plantInfo.SetActive(true);
+                UpdatePlantInfo();
+            }
+        }
+
+        public void ClosePlantInfo()
+        {
+            if (plantInfo != null)
+            {
+                plantInfo.SetActive(false);
+            }
+        }
+
+        private void UpdatePlantInfo()
+        {
+            if (GameManager.Instance == null || GameManager.Instance.focusedTile == null)
+            {
+                ClosePlantInfo();
+                return;
+            }
+
+            GridVisualTile visualTile = GameManager.Instance.focusedTile.GetComponent<GridVisualTile>();
+            if (visualTile == null)
+            {
+                ClosePlantInfo();
+                return;
+            }
+
+            PlantBit plant = GameManager.Instance.gameGrid.GetEntity<PlantBit>(visualTile.coords);
+            if (plant == null)
+            {
+                ClosePlantInfo();
+                return;
+            }
+
+            if (plantInfoExtractionText != null)
+            {
+                plantInfoExtractionText.text = $"Extraction: {plant.extractionRate:F1}";
+            }
+
+            if (plantInfoAttackText != null)
+            {
+                plantInfoAttackText.text = $"Attack: {plant.attackDamage:F1}";
+            }
+
+            if (plantInfoStorageText != null)
+            {
+                plantInfoStorageText.text = $"Storage: {plant.energyStorage:F1}";
+            }
+
+            if (plantInfoMaxComponentsText != null)
+            {
+                plantInfoMaxComponentsText.text = $"Max Components: {plant.TotalComponents}/{plant.maxComponentCount}";
+            }
+
+            if (plantInfoInfectionText != null)
+            {
+                if (plant.isInfected && plant.phase != PlantBitPhase.FullyInfected)
+                {
+                    float infectionPercent = PollutionManager.Instance.CheckPlantInfection(plant);
+                    string bar = CreateProgressBar((int)(infectionPercent * 100), 100, 10);
+                    plantInfoInfectionText.text = $"Infection: {bar} {(infectionPercent * 100):F0}%";
+                }
+                else if (plant.phase == PlantBitPhase.FullyInfected)
+                {
+                    plantInfoInfectionText.text = "Infection: FULLY INFECTED";
+                }
+                else
+                {
+                    plantInfoInfectionText.text = "Infection: None";
+                }
+            }
+
+            if (nipButton != null)
+            {
+                nipButton.interactable = !plant.isHeart;
+            }
+
+            if (sproutButton != null)
+            {
+                sproutButton.interactable = plant.phase == PlantBitPhase.Grown && !plant.isInfected;
+            }
+        }
+
+        private void OnNipButtonClicked()
+        {
+            if (GameManager.Instance == null || GameManager.Instance.focusedTile == null) return;
+
+            GridVisualTile visualTile = GameManager.Instance.focusedTile.GetComponent<GridVisualTile>();
+            if (visualTile == null) return;
+
+            PlantBit plant = GameManager.Instance.gameGrid.GetEntity<PlantBit>(visualTile.coords);
+            if (plant != null && !plant.isHeart)
+            {
+                PlantBitManager.Instance.NipPlantBit(plant);
+                float refund = plant.sproutCost * 0.25f;
+                ShowLogMessage($"Plant nipped! Refunded {refund:F1} energy");
+                ClosePlantInfo();
+            }
+        }
+
+        private void OnSproutButtonClicked()
+        {
+            if (GameManager.Instance == null || GameManager.Instance.focusedTile == null) return;
+
+            GridVisualTile visualTile = GameManager.Instance.focusedTile.GetComponent<GridVisualTile>();
+            if (visualTile == null) return;
+
+            PlantBit plant = GameManager.Instance.gameGrid.GetEntity<PlantBit>(visualTile.coords);
+            if (plant != null && plant.phase == PlantBitPhase.Grown && !plant.isInfected)
+            {
+                float currentEnergy = PlantBitManager.Instance.currentEnergy;
+                float cost = plant.sproutCost;
+
+                if (currentEnergy < cost)
+                {
+                    ShowLogMessage($"Not enough energy! Current: {currentEnergy:F0} Required: {cost:F0}");
+                    return;
+                }
+
+                plant.AttemptSprout(true);
+                ShowLogMessage($"Sprouted! Cost: {cost:F0} energy");
+            }
+        }
+
+        public void ShowLogMessage(string message)
+        {
+            if (logMessageText != null)
+            {
+                logMessageText.text = message;
+            }
         }
     }
 }

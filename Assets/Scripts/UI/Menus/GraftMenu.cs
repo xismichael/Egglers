@@ -50,42 +50,28 @@ namespace Egglers
             tooltipText.gameObject.SetActive(true);
             tooltipText.text = defaultTooltip;
 
-            TileActions tileActions = GameManager.Instance.focusedTile.GetComponent<TileActions>();
-
-            // Go over the actions and tie them to the right buttons
-            foreach (var action in tileActions.actions)
+            // Set up remove graft button to pass slider values directly
+            removeGraftButton.onClick.AddListener(() =>
             {
-                // Debug.Log($"[Graft menu] Action type: {action.actionType}");
-                Button triggerButton = action.actionType switch
+                int leafVal = (int)leafSlider.value;
+                int rootVal = (int)rootSlider.value;
+                int fruitVal = (int)fruitSlider.value;
+
+                GridVisualTile visual = GameManager.Instance.focusedTile.GetComponent<GridVisualTile>();
+                if (visual != null)
                 {
-                    TileActionType.RemoveGraft => removeGraftButton,
-                    _ => null
-                };
+                    PlantBitManager.Instance.RemoveGraftAtPosition(visual.coords, leafVal, rootVal, fruitVal);
+                    UIManager.Instance.GoToMenu(GameMenuID.HUD);
+                }
+            });
 
-                if (triggerButton == null) continue;
+            int currentLeaf = (int)leafSlider.value;
+            int currentRoot = (int)rootSlider.value;
+            int currentFruit = (int)fruitSlider.value;
 
-                triggerButton.onClick.AddListener(() =>
-                {
-                    action.callback?.Invoke(GameManager.Instance.focusedTile);
-                });
-
-                // Tooltip hover
-                EventTrigger trigger = triggerButton.gameObject.AddComponent<EventTrigger>();
-                var enterEntry = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
-                enterEntry.callback.AddListener((_) => ShowTooltip(action));
-                trigger.triggers.Add(enterEntry);
-            }
-
-            int leafVal = (int)leafSlider.value;
-            int rootVal = (int)rootSlider.value;
-            int fruitVal = (int)fruitSlider.value;
-
-            leafText.text = leafVal.ToString();
-            rootText.text = rootVal.ToString();
-            fruitText.text = fruitVal.ToString();
-
-            // Stash the graft data here so it can be used later by the tile action to remove the graft
-            PlantBitManager.Instance.StashGraftData(leafVal, rootVal, fruitVal);
+            leafText.text = currentLeaf.ToString();
+            rootText.text = currentRoot.ToString();
+            fruitText.text = currentFruit.ToString();
 
             base.RefreshMenu();
         }
@@ -126,7 +112,7 @@ namespace Egglers
 
         private void OnRemoveGraftClicked()
         {
-            UIManager.Instance.GoToMenu(GameMenuID.HUD);
+            // Handled by RefreshMenu listener now
         }
 
         private void OnSliderValueChanged(float val)

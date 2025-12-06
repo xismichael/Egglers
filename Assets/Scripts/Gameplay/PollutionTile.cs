@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Egglers
 {
@@ -27,8 +28,22 @@ namespace Egglers
             return pollutionSpreadRate + pollutionStrength + pollutionResistance;
         }
 
+        public float GetInfectionRate()
+        {
+            //between 30 and 10seconds, scaled by pollution spread rate
+            float percentage = Mathf.Clamp01(pollutionSpreadRate / 75f);
+            return 30f - (percentage * 20f);
+        }
+
         public void Spread()
         {
+            // Check if there's still a plant at this position
+            PlantBit plantAtPosition = PollutionManager.Instance.gameGrid.GetEntity<PlantBit>(position);
+            if (plantAtPosition == null)
+            {
+                isFrozen = false; // Unfreeze if plant is gone
+            }
+
             // Can't spread if frozen
             if (isFrozen)
             {
@@ -41,10 +56,10 @@ namespace Egglers
             float myTotalPollution = GetTotalPollution();
             float maxNeighborPollution = myTotalPollution * 0.9f; // neighbor can't exceed 90% of my pollution
 
-            // Calculate 10% to spread
-            float spreadAmount_SpreadRate = pollutionSpreadRate * 0.1f;
-            float spreadAmount_Strength = pollutionStrength * 0.1f;
-            float spreadAmount_Resistance = pollutionResistance * 0.1f;
+            // Calculate 90% to spread
+            float spreadAmount_SpreadRate = pollutionSpreadRate * 0.9f;
+            float spreadAmount_Strength = pollutionStrength * 0.9f;
+            float spreadAmount_Resistance = pollutionResistance * 0.9f;
             float totalSpreadAmount = spreadAmount_SpreadRate + spreadAmount_Strength + spreadAmount_Resistance;
 
             // If the total spread amount is less than the minimum spread amount, don't spread
@@ -62,15 +77,11 @@ namespace Egglers
                 // Skip if a pollution source already occupies this tile
                 if (neighborSource != null) continue;
 
-                // Attack plant if pollution is stronger
+                // try to infect the plant
                 if (neighborPlantBit != null)
                 {
-                    if (pollutionStrength > neighborPlantBit.attackDamage)
-                    {
-                        PollutionManager.Instance.plantManager.KillPlantBit(neighborPlantBit);
-                        GridEvents.PlantKilledByPollution(neighborPlantBit.position);
-                        Debug.Log($"[PollutionTile] Killed plant at {neighborPos} | PollutionStrength: {pollutionStrength}, PlantAttack: {neighborPlantBit.attackDamage}");
-                    }
+                    if (!infectPlant(neighborPlantBit)) continue;
+
                 }
 
                 // Create new tile if empty
@@ -79,6 +90,7 @@ namespace Egglers
                     PollutionTile newTile = PollutionManager.Instance.AddPollutionToPosition(
                         neighborPos, spreadAmount_SpreadRate, spreadAmount_Strength, spreadAmount_Resistance
                     );
+                    newTile.isFrozen = (neighborPlantBit != null);
                     foreach (PollutionSource source in connectedSources)
                     {
                         newTile.connectedSources.Add(source);
@@ -87,17 +99,12 @@ namespace Egglers
                 }
                 else
                 {
-                    // Skip frozen tiles
-                    if (neighborTile.isFrozen) continue;
-
                     float neighborCurrent = neighborTile.GetTotalPollution();
-                    maxNeighborPollution = GetTotalPollution() * 0.9f;
 
+                    // Only spread if neighbor is below 90% cap
                     if (neighborCurrent < maxNeighborPollution)
                     {
                         float roomLeft = maxNeighborPollution - neighborCurrent;
-                        totalSpreadAmount = spreadAmount_SpreadRate + spreadAmount_Strength + spreadAmount_Resistance;
-
                         float scaleFactor = totalSpreadAmount > roomLeft ? roomLeft / totalSpreadAmount : 1f;
 
                         PollutionManager.Instance.AddPollutionToTile(
@@ -118,20 +125,25 @@ namespace Egglers
             }
         }
 
-        public void TakeDamage(float amount)
+
+        //have to change based on pollution resistance too
+        public float TakeDamage(float amount)
         {
             if (amount <= 0f)
             {
-                return;
+                return 0f;
             }
 
             float currentTotal = GetTotalPollution();
             if (currentTotal <= 0f)
             {
-                return;
+                return 0f;
             }
 
-            float damage = Mathf.Min(amount, currentTotal);
+            //damag gets reduced by pollution resistance
+            float resistanceScale = Mathf.Max(0f, 1 - (pollutionResistance/75f + 0.5f));
+
+            float damage = Mathf.Min(amount * resistanceScale, currentTotal);
             float ratio = damage / currentTotal;
 
             pollutionSpreadRate = Mathf.Max(0f, pollutionSpreadRate - (pollutionSpreadRate * ratio));
@@ -147,6 +159,34 @@ namespace Egglers
             {
                 GridEvents.PollutionUpdated(position);
             }
+            return damage;
+        }
+
+
+        //try infecting the plant:
+        // if current pollution strength is greater than plant's attack damage
+        // then infect the plant
+        // if the current pollution strenght is greater than the maxthreashold
+        // then fully infect the plant
+
+        public bool infectPlant(PlantBit plant)
+        {
+            if (pollutionStrength * 0.9f < plant.attackDamage)
+            {
+                plant.isInfected = false;
+                GridEvents.PlantUpdated(plant.position);
+                return false;
+            }
+            plant.isInfected = true;
+            GridEvents.PlantUpdated(plant.position);
+            float maxThreshold = plant.attackDamage * (1 + (0.5f - 0.5f * pollutionResistance * 0.9f / 75f));
+            if (pollutionStrength * 0.9f > maxThreshold)
+            {
+                plant.phase = PlantBitPhase.FullyInfected;
+                GridEvents.PlantKilledByPollution(plant.position);
+                plant.InfectionSpread(GetInfectionRate());
+            }
+            return true;
         }
     }
 }

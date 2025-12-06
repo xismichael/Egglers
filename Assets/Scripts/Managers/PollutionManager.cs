@@ -153,50 +153,6 @@ namespace Egglers
 
         }
 
-        public void ReducePollutionAt(int x, int y, float percentage)
-        {
-            // Check bounds
-            if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
-            {
-                return;
-            }
-
-            PollutionTile pollutionTile = gameGrid.GetEntity<PollutionTile>(new Vector2Int(x, y));
-            if (pollutionTile == null) return;
-
-            // Freeze tile to prevent it from spreading/receiving while being reduced
-            pollutionTile.isFrozen = true;
-
-            // Reduce by percentage
-            float reductionFactor = 1f - (percentage / 100f);
-            pollutionTile.pollutionSpreadRate *= reductionFactor;
-            pollutionTile.pollutionStrength *= reductionFactor;
-            pollutionTile.pollutionResistance *= reductionFactor;
-
-            // Remove if pollution is too low
-            if (pollutionTile.GetTotalPollution() < 0.1f)
-            {
-                RemovePollutionAt(x, y);
-            }
-            else
-            {
-                GridEvents.PollutionUpdated(new Vector2Int(x, y));
-            }
-
-        }
-
-        public void RemoveSourceAt(int x, int y)
-        {
-            // Check bounds
-            if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
-            {
-                return;
-            }
-
-            PollutionSource pollutionSource = gameGrid.GetEntity<PollutionSource>(new Vector2Int(x, y));
-            if (pollutionSource == null) return;
-            RemoveSource(pollutionSource);
-        }
 
         public void RemoveSource(PollutionSource pollutionSource)
         {
@@ -255,6 +211,54 @@ namespace Egglers
             if (pollutionTile == null && pollutionSource == null) return 0f;
             if (pollutionTile != null) return pollutionTile.GetTotalPollution();
             return pollutionSource.GetTotalPollution();
+        }
+
+        /// <summary>
+        /// Checks infection status of a plant and returns infection progress (0-1).
+        /// Handles plant curing, full infection, and returns progress percentage.
+        /// Call this every tick for infected plants.
+        /// </summary>
+        public float CheckPlantInfection(PlantBit plant)
+        {
+            PollutionTile tile = gameGrid.GetEntity<PollutionTile>(plant.position);
+            
+            // No pollution at plant position → cure
+            if (tile == null)
+            {
+                plant.isInfected = false;
+                GridEvents.PlantUpdated(plant.position);
+                return 0f; // 0% infected
+            }
+            
+            float pollutionStrength = tile.pollutionStrength;
+            float plantAttack = plant.attackDamage;
+            
+            // Plant wins → remove pollution and cure
+            if (plantAttack > pollutionStrength)
+            {
+                RemovePollutionAt(tile.position.x, tile.position.y);
+                plant.isInfected = false;
+                GridEvents.PlantUpdated(plant.position);
+                return 0f; // Cured!
+            }
+            
+            // Calculate infection threshold
+            float maxThreshold = plantAttack * (1 + (0.5f - 0.5f * tile.pollutionResistance / 75f));
+            
+            // Pollution wins → fully infect
+            if (pollutionStrength > maxThreshold)
+            {
+                plant.phase = PlantBitPhase.FullyInfected;
+                tile.isFrozen = false; // Unfreeze - plant is dead, pollution can spread
+                GridEvents.PlantKilledByPollution(plant.position);
+                plant.InfectionSpread(tile.GetInfectionRate());
+                GridEvents.PlantUpdated(plant.position);
+                return 1f; // 100% infected
+            }
+            
+            // In-between → return infection progress
+            float infectionProgress = (pollutionStrength - plantAttack) / (maxThreshold - plantAttack);
+            return Mathf.Clamp01(infectionProgress); // Returns 0-1 (0%-100%)
         }
     }
 }

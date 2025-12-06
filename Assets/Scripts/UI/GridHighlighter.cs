@@ -97,6 +97,21 @@ public class GridHighlighter : MonoBehaviour
                     hud.OnTileHoverExit();
                 }
             }
+
+            if (GameManager.Instance != null && GameManager.Instance.gameState == GameState.HeartPlacement)
+            {
+                if (previousHoveredTile != null)
+                {
+                    GridVisualTile prevVisual = previousHoveredTile.GetComponent<GridVisualTile>();
+                    if (prevVisual != null) prevVisual.HideHeartPreview();
+                }
+
+                if (hoveredTile != null)
+                {
+                    GridVisualTile visual = hoveredTile.GetComponent<GridVisualTile>();
+                    if (visual != null) visual.ShowHeartPreview();
+                }
+            }
         }
 
         // 1) If previous hovered tile lost hover and isn't selected, target -> original
