@@ -3953,17 +3953,11 @@ MonoBehaviour:
   heartStartFruit: 2
   plantTickRate: 1
   sourcesSetup:
-  - position: {x: 3, y: 3}
-    spreadRate: 10
-    strength: 10
-    resistance: 60
-    pulseRate: 7
-    dormantDuration: 0
   - position: {x: 7, y: 7}
-    spreadRate: 5
-    strength: 30
+    spreadRate: 75
+    strength: 2
     resistance: 0
-    pulseRate: 20
+    pulseRate: 5
     dormantDuration: 0
   focusedTile: {fileID: 0}
 --- !u!1 &519588064

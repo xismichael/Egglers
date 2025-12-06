@@ -74,6 +74,11 @@ namespace Egglers
             {
                 UpdateHUD();
                 CheckHoverState();
+                
+                if (plantInfo != null && plantInfo.activeSelf)
+                {
+                    UpdatePlantInfo();
+                }
             }
         }
 
@@ -472,7 +477,8 @@ namespace Egglers
                 }
                 else
                 {
-                    plantInfoInfectionText.text = "Infection: None";
+                    string bar = CreateProgressBar(0, 100, 10);
+                    plantInfoInfectionText.text = $"Infection: {bar} 0%";
                 }
             }
 
