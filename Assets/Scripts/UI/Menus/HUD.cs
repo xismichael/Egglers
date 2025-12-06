@@ -295,7 +295,7 @@ namespace Egglers
                 plantLeafText.text = $"Leaf: {plant.leafCount}";
                 if (plant.graftedLeafCount > 0)
                     plantLeafText.text += $" (+{plant.graftedLeafCount})";
-                plantLeafText.text += $" | Energy: {plant.extractionRate:F1}";
+                plantLeafText.text += $" | Extraction: {plant.extractionRate:F1}/tick";
             }
 
             if (plantRootText != null)
@@ -303,7 +303,7 @@ namespace Egglers
                 plantRootText.text = $"Root: {plant.rootCount}";
                 if (plant.graftedRootCount > 0)
                     plantRootText.text += $" (+{plant.graftedRootCount})";
-                plantRootText.text += $" | Attack: {plant.attackDamage:F1}";
+                plantRootText.text += $" | Atk: {plant.attackDamage:F1}";
             }
 
             if (plantFruitText != null)
@@ -439,12 +439,12 @@ namespace Egglers
 
             if (plantInfoExtractionText != null)
             {
-                plantInfoExtractionText.text = $"Extraction: {plant.extractionRate:F1}";
+                plantInfoExtractionText.text = $"Extraction: {plant.extractionRate:F1}/tick";
             }
 
             if (plantInfoAttackText != null)
             {
-                plantInfoAttackText.text = $"Attack: {plant.attackDamage:F1}";
+                plantInfoAttackText.text = $"Atk: {plant.attackDamage:F1}";
             }
 
             if (plantInfoStorageText != null)
@@ -463,16 +463,17 @@ namespace Egglers
                 {
                     float infectionPercent = PollutionManager.Instance.CheckPlantInfection(plant);
                     string bar = CreateProgressBar((int)(infectionPercent * 100), 100, 10);
-                    plantInfoInfectionText.text = $"Infection: {bar} {(infectionPercent * 100):F0}%";
+                    plantInfoInfectionText.text = $"{bar} {(infectionPercent * 100):F0}% infected";
                 }
                 else if (plant.phase == PlantBitPhase.FullyInfected)
                 {
-                    plantInfoInfectionText.text = "Infection: FULLY INFECTED";
+                    string bar = CreateProgressBar(100, 100, 10);
+                    plantInfoInfectionText.text = $"{bar} 100% infected";
                 }
                 else
                 {
                     string bar = CreateProgressBar(0, 100, 10);
-                    plantInfoInfectionText.text = $"Infection: {bar} 0%";
+                    plantInfoInfectionText.text = $"{bar} 0% infected";
                 }
             }
 

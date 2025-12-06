@@ -146,19 +146,17 @@ namespace Egglers
             float damage = Mathf.Min(amount * resistanceScale, currentTotal);
             float ratio = damage / currentTotal;
 
-            pollutionSpreadRate = Mathf.Max(0f, pollutionSpreadRate - (pollutionSpreadRate * ratio));
+            //pollutionSpreadRate = Mathf.Max(0f, pollutionSpreadRate - (pollutionSpreadRate * ratio));
             pollutionStrength = Mathf.Max(0f, pollutionStrength - (pollutionStrength * ratio));
-            pollutionResistance = Mathf.Max(0f, pollutionResistance - (pollutionResistance * ratio));
+            //pollutionResistance = Mathf.Max(0f, pollutionResistance - (pollutionResistance * ratio));
 
-            if (GetTotalPollution() <= 0.1f)
+            if (pollutionStrength <= 0.1f)
             {
                 GridEvents.PollutionKilledByPlant(position);
                 PollutionManager.Instance.RemovePollutionAt(position.x, position.y);
             }
             else
-            {
-                GridEvents.PollutionUpdated(position);
-            }
+            GridEvents.PollutionUpdated(position);
             return damage;
         }
 

@@ -213,39 +213,5 @@ namespace Egglers
             }
         }
 
-        // Player actions
-        public void PlayerManualSprout(Vector2Int parentPos, Vector2Int targetPos)
-        {
-            if (gameState != GameState.Playing) return;
-
-            PlantBit parent = gameGrid.GetEntity<PlantBit>(parentPos);
-            if (parent != null)
-            {
-                plantManager.CreateSprout(parent, targetPos);
-            }
-        }
-
-        public void PlayerPrune(Vector2Int pos)
-        {
-            if (gameState != GameState.Playing) return;
-
-            PlantBit plant = gameGrid.GetEntity<PlantBit>(pos);
-            if (plant != null && plant != plantManager.heart)
-            {
-                plantManager.KillPlantBit(plant);
-            }
-        }
-
-        public void PlayerApplyGrafts(Vector2Int pos)
-        {
-            if (gameState != GameState.Playing) return;
-            plantManager.ApplyGraftAtPosition(pos);
-        }
-
-        public void PlayerRemoveGrafts(Vector2Int pos, int leaf, int root, int fruit)
-        {
-            if (gameState != GameState.Playing) return;
-            plantManager.RemoveGraftAtPosition(pos, leaf, root, fruit);
-        }
     }
 }

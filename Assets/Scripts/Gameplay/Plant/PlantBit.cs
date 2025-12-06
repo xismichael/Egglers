@@ -225,7 +225,8 @@ namespace Egglers
             foreach (Vector2Int neighborPos in neighbors)
             {
                 // Allow sprouting as long as no PlantBit is already present
-                bool canSprout = grid.GetEntity<PlantBit>(neighborPos) == null;
+                bool canSprout = (grid.GetEntity<PlantBit>(neighborPos) == null) && (grid.GetEntity<PollutionTile>(neighborPos) == null) && (grid.GetEntity<PollutionSource>(neighborPos) == null);
+                //check
 
                 //Debug.Log($"[PlantBit] Checking sprout spot {neighborPos} | canSprout={canSprout}");
 
