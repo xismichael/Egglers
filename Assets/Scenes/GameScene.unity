@@ -17577,6 +17577,18 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 1957572976}
     - target: {fileID: 7751109014737477275, guid: 86869eb970b4f6341b6ba46d25217ae0, type: 3}
+      propertyPath: leafSlider
+      value: 
+      objectReference: {fileID: 1866227666}
+    - target: {fileID: 7751109014737477275, guid: 86869eb970b4f6341b6ba46d25217ae0, type: 3}
+      propertyPath: rootSlider
+      value: 
+      objectReference: {fileID: 1570601443}
+    - target: {fileID: 7751109014737477275, guid: 86869eb970b4f6341b6ba46d25217ae0, type: 3}
+      propertyPath: fruitSlider
+      value: 
+      objectReference: {fileID: 1165382453}
+    - target: {fileID: 7751109014737477275, guid: 86869eb970b4f6341b6ba46d25217ae0, type: 3}
       propertyPath: sproutButton
       value: 
       objectReference: {fileID: 2109491242}
@@ -17593,6 +17605,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 9322443}
     - target: {fileID: 7751109014737477275, guid: 86869eb970b4f6341b6ba46d25217ae0, type: 3}
+      propertyPath: logMessageText
+      value: 
+      objectReference: {fileID: 481580311}
+    - target: {fileID: 7751109014737477275, guid: 86869eb970b4f6341b6ba46d25217ae0, type: 3}
       propertyPath: plantFruitText
       value: 
       objectReference: {fileID: 402464063}
@@ -17600,6 +17616,10 @@ PrefabInstance:
       propertyPath: plantPhaseText
       value: 
       objectReference: {fileID: 323373013}
+    - target: {fileID: 7751109014737477275, guid: 86869eb970b4f6341b6ba46d25217ae0, type: 3}
+      propertyPath: graftApplyButton
+      value: 
+      objectReference: {fileID: 1310588343}
     - target: {fileID: 7751109014737477275, guid: 86869eb970b4f6341b6ba46d25217ae0, type: 3}
       propertyPath: pollutionTypeText
       value: 
@@ -17620,6 +17640,10 @@ PrefabInstance:
       propertyPath: pollutionSourcesText
       value: 
       objectReference: {fileID: 956177617}
+    - target: {fileID: 7751109014737477275, guid: 86869eb970b4f6341b6ba46d25217ae0, type: 3}
+      propertyPath: graftModeToggleButton
+      value: 
+      objectReference: {fileID: 1849521735}
     - target: {fileID: 7751109014737477275, guid: 86869eb970b4f6341b6ba46d25217ae0, type: 3}
       propertyPath: pollutionStrengthText
       value: 
