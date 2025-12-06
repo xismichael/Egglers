@@ -52,6 +52,7 @@ namespace Egglers
         [SerializeField] private UnityEngine.UI.Button sproutButton;
 
         [Header("Grafting UI")]
+        [SerializeField] private TMP_Text graftBufferText;
         [SerializeField] private UnityEngine.UI.Button graftModeToggleButton;
         [SerializeField] private UnityEngine.UI.Slider leafSlider;
         [SerializeField] private UnityEngine.UI.Slider rootSlider;
@@ -63,6 +64,7 @@ namespace Egglers
 
         private GameObject currentHoveredTile = null;
         private GraftMode currentGraftMode = GraftMode.ApplyGraft;
+        private GameObject lastFocusedTileForGrafting = null; // Track when plant selection changes
 
         protected override void InnerAwake()
         {
@@ -169,6 +171,7 @@ namespace Egglers
             UpdateEnergyDisplay();
             UpdatePollutionSourcesDisplay();
             UpdateGameStateDisplay();
+            UpdateGraftBufferDisplay();
         }
 
         private void UpdateEnergyDisplay()
@@ -241,6 +244,23 @@ namespace Egglers
                 };
 
                 gameStateText.text = stateDisplay;
+            }
+        }
+
+        private void UpdateGraftBufferDisplay()
+        {
+            if (graftBufferText != null && PlantBitManager.Instance != null)
+            {
+                GraftBuffer buffer = PlantBitManager.Instance.graftBuffer;
+                
+                if (buffer.hasContent)
+                {
+                    graftBufferText.text = $"Graft Buffer: L:{buffer.leafCount} R:{buffer.rootCount} F:{buffer.fruitCount}";
+                }
+                else
+                {
+                    graftBufferText.text = "Graft Buffer: Empty";
+                }
             }
         }
 
@@ -356,18 +376,6 @@ namespace Egglers
                     plantFruitText.text += $" (+{plant.graftedFruitCount})";
                 plantFruitText.text += $" | Storage: {plant.energyStorage:F1}";
             }
-
-            // Log detailed debug info to console
-            Debug.Log($"[HUD] Plant at {plant.position} | " +
-                      $"Phase: {plant.phase} | " +
-                      $"IsHeart: {plant.isHeart} | " +
-                      $"IsInfected: {plant.isInfected} | " +
-                      $"L:{plant.leafCount}+{plant.graftedLeafCount} " +
-                      $"R:{plant.rootCount}+{plant.graftedRootCount} " +
-                      $"F:{plant.fruitCount}+{plant.graftedFruitCount} | " +
-                      $"Attack:{plant.attackDamage:F2} Energy:{plant.extractionRate:F2} Storage:{plant.energyStorage:F2} | " +
-                      $"SproutCost:{plant.sproutCost:F2} MaintenanceCost:{plant.maintenanceCost:F2} | " +
-                      $"MaxComponents:{plant.maxComponentCount}");
         }
 
         private void UpdatePollutionHoverInfo(PollutionTile pollution, bool isSource)
@@ -530,8 +538,15 @@ namespace Egglers
                 sproutButton.interactable = plant.phase == PlantBitPhase.Grown && !plant.isInfected;
             }
 
-            // Update graft scrollbars
-            UpdateGraftScrollbars();
+            // Only update graft scrollbars if the focused tile changed (don't reset every frame!)
+            if (GameManager.Instance.focusedTile != lastFocusedTileForGrafting)
+            {
+                lastFocusedTileForGrafting = GameManager.Instance.focusedTile;
+                UpdateGraftScrollbars(resetValues: true);
+            }
+
+            // Update graft button text
+            UpdateGraftModeButtonText();
         }
 
         private void OnNipButtonClicked()
@@ -590,25 +605,113 @@ namespace Egglers
                 ? GraftMode.RemoveGraft 
                 : GraftMode.ApplyGraft;
 
-            // Update scrollbars for the new mode
-            UpdateGraftScrollbars();
+            // Update scrollbars for the new mode (and reset values)
+            UpdateGraftScrollbars(resetValues: true);
 
-            // TODO: Update button text to reflect current mode
-            // You'll implement this when connecting to UI
+            // Update button text to reflect current mode
+            UpdateGraftModeButtonText();
         }
 
         private void OnGraftApplyClicked()
         {
+            if (GameManager.Instance == null || GameManager.Instance.focusedTile == null)
+            {
+                ShowLogMessage("No plant selected");
+                return;
+            }
+
+            GridVisualTile visualTile = GameManager.Instance.focusedTile.GetComponent<GridVisualTile>();
+            if (visualTile == null)
+            {
+                ShowLogMessage("Invalid tile");
+                return;
+            }
+
+            PlantBit plant = GameManager.Instance.gameGrid.GetEntity<PlantBit>(visualTile.coords);
+            if (plant == null)
+            {
+                ShowLogMessage("No plant on this tile");
+                return;
+            }
+
+            // Check if plant is a bud (can't graft buds)
+            if (plant.phase == PlantBitPhase.Bud)
+            {
+                ShowLogMessage("Cannot graft a bud");
+                SoundManager.Instance.PlayError();
+                return;
+            }
+
             // Get slider values (already integers due to wholeNumbers = true)
             int leafAmount = (int)leafSlider.value;
             int rootAmount = (int)rootSlider.value;
             int fruitAmount = (int)fruitSlider.value;
 
-            // TODO: Implement apply/remove graft logic based on currentGraftMode
-            // You'll implement the actual actions here
+            int totalAmount = leafAmount + rootAmount + fruitAmount;
+
+            if (totalAmount == 0)
+            {
+                ShowLogMessage("Select components to graft");
+                return;
+            }
+
+            if (currentGraftMode == GraftMode.ApplyGraft)
+            {
+                // Check if buffer has enough components
+                GraftBuffer buffer = PlantBitManager.Instance.graftBuffer;
+                
+                if (!buffer.hasContent)
+                {
+                    ShowLogMessage("Buffer is empty! Use Remove mode to harvest components first");
+                    return;
+                }
+                
+                if (leafAmount > buffer.leafCount || rootAmount > buffer.rootCount || fruitAmount > buffer.fruitCount)
+                {
+                    ShowLogMessage("Not enough components in buffer");
+                    return;
+                }
+
+                // Check if plant has room for components
+                int componentsLeft = plant.maxComponentCount - plant.TotalComponents;
+                if (totalAmount > componentsLeft)
+                {
+                    ShowLogMessage($"Plant can only hold {componentsLeft} more components");
+                    return;
+                }
+
+                // Apply the graft
+                plant.ApplyGraft(leafAmount, rootAmount, fruitAmount);
+                ShowLogMessage($"Applied graft: L{leafAmount} R{rootAmount} F{fruitAmount}");
+                Debug.Log($"[HUD] Applied graft to plant at {plant.position}: L{leafAmount} R{rootAmount} F{fruitAmount}");
+                GridEvents.PlantUpdated(plant.position);
+            }
+            else // RemoveGraft
+            {
+                // Check if plant has enough natural components to remove
+                if (leafAmount > plant.leafCount || rootAmount > plant.rootCount || fruitAmount > plant.fruitCount)
+                {
+                    ShowLogMessage("Not enough natural components to remove");
+                    return;
+                }
+
+                // Remove the graft (adds to buffer)
+                plant.RemoveGraft(leafAmount, rootAmount, fruitAmount);
+                ShowLogMessage($"Removed components: L{leafAmount} R{rootAmount} F{fruitAmount}");
+                Debug.Log($"[HUD] Removed components from plant at {plant.position}: L{leafAmount} R{rootAmount} F{fruitAmount}");
+                GridEvents.PlantUpdated(plant.position);
+            }
+
+            // Reset sliders after action
+            if (leafSlider != null) leafSlider.value = 0;
+            if (rootSlider != null) rootSlider.value = 0;
+            if (fruitSlider != null) fruitSlider.value = 0;
+
+            // Update the scrollbars to reflect new state
+            UpdateGraftScrollbars(resetValues: false); // Don't reset again, we just did it
         }
 
-        private void UpdateGraftScrollbars()
+        private void UpdateGraftScrollbars(bool resetValues = false)
         {
             if (GameManager.Instance == null || GameManager.Instance.focusedTile == null) return;
 
@@ -618,11 +721,36 @@ namespace Egglers
             PlantBit plant = GameManager.Instance.gameGrid.GetEntity<PlantBit>(visualTile.coords);
             if (plant == null) return;
 
-            // Reset slider values to 0
-            if (leafSlider != null) leafSlider.value = 0;
-            if (rootSlider != null) rootSlider.value = 0;
-            if (fruitSlider != null) fruitSlider.value = 0;
+            // Only reset slider values when explicitly requested (mode change, plant change)
+            if (resetValues)
+            {
+                if (leafSlider != null) leafSlider.value = 0;
+                if (rootSlider != null) rootSlider.value = 0;
+                if (fruitSlider != null) fruitSlider.value = 0;
+            }
 
+            // Can't graft buds
+            if (plant.phase == PlantBitPhase.Bud)
+            {
+                SetSliderRange(leafSlider, 0);
+                SetSliderRange(rootSlider, 0);
+                SetSliderRange(fruitSlider, 0);
+                
+                // Disable sliders
+                if (leafSlider != null) leafSlider.interactable = false;
+                if (rootSlider != null) rootSlider.interactable = false;
+                if (fruitSlider != null) fruitSlider.interactable = false;
+                if (graftApplyButton != null) graftApplyButton.interactable = false;
+                return;
+            }
+
+            // Enable sliders for grown plants
+            if (leafSlider != null) leafSlider.interactable = true;
+            if (rootSlider != null) rootSlider.interactable = true;
+            if (fruitSlider != null) fruitSlider.interactable = true;
+            if (graftApplyButton != null) graftApplyButton.interactable = true;
+
+            // Dynamic logic based on mode
             if (currentGraftMode == GraftMode.RemoveGraft)
             {
                 // Remove mode: max = natural component count
@@ -634,12 +762,17 @@ namespace Egglers
             {
                 // Apply mode: max = min(buffer amount, components left)
                 int componentsLeft = plant.maxComponentCount - plant.TotalComponents;
-                
                 GraftBuffer buffer = PlantBitManager.Instance.graftBuffer;
                 
                 int leafMax = Mathf.Min(buffer.leafCount, componentsLeft);
                 int rootMax = Mathf.Min(buffer.rootCount, componentsLeft);
                 int fruitMax = Mathf.Min(buffer.fruitCount, componentsLeft);
+                
+                // Log warning if buffer is empty
+                if (buffer.TotalComponents == 0 && resetValues)
+                {
+                    ShowLogMessage("Graft buffer is empty! Use Remove mode first");
+                }
                 
                 SetSliderRange(leafSlider, leafMax);
                 SetSliderRange(rootSlider, rootMax);
@@ -656,6 +789,26 @@ namespace Egglers
             slider.wholeNumbers = true;
         }
 
+        private void UpdateGraftModeButtonText()
+        {
+            if (graftModeToggleButton == null) return;
+
+            // Try to find TMP_Text first (preferred), then fall back to legacy Text
+            TMP_Text tmpText = graftModeToggleButton.GetComponentInChildren<TMP_Text>();
+            if (tmpText != null)
+            {
+                tmpText.text = currentGraftMode == GraftMode.ApplyGraft ? "Apply Graft" : "Remove Graft";
+                return;
+            }
+
+            // Fallback to legacy Text component
+            UnityEngine.UI.Text legacyText = graftModeToggleButton.GetComponentInChildren<UnityEngine.UI.Text>();
+            if (legacyText != null)
+            {
+                legacyText.text = currentGraftMode == GraftMode.ApplyGraft ? "Apply Graft" : "Remove Graft";
+            }
+        }
+
         private void OnSliderValueChanged(float value)
         {
             // Only need to update in ApplyGraft mode (interdependent limits)
@@ -668,6 +821,11 @@ namespace Egglers
 
             PlantBit plant = GameManager.Instance.gameGrid.GetEntity<PlantBit>(visualTile.coords);
             if (plant == null) return;
+
+            // Temporarily remove listeners to prevent feedback loop
+            if (leafSlider != null) leafSlider.onValueChanged.RemoveListener(OnSliderValueChanged);
+            if (rootSlider != null) rootSlider.onValueChanged.RemoveListener(OnSliderValueChanged);
+            if (fruitSlider != null) fruitSlider.onValueChanged.RemoveListener(OnSliderValueChanged);
 
             // Get current slider values (already integers)
             int leafAmount = (int)(leafSlider != null ? leafSlider.value : 0);
@@ -685,20 +843,18 @@ namespace Egglers
             int rootMax = Mathf.Min(buffer.rootCount, rootAmount + remainingSlots);
             int fruitMax = Mathf.Min(buffer.fruitCount, fruitAmount + remainingSlots);
 
-            // Store current values
-            int currentLeaf = (int)(leafSlider != null ? leafSlider.value : 0);
-            int currentRoot = (int)(rootSlider != null ? rootSlider.value : 0);
-            int currentFruit = (int)(fruitSlider != null ? fruitSlider.value : 0);
-
-            // Update max values
+            // Update slider ranges (this will clamp values automatically)
             SetSliderRange(leafSlider, leafMax);
             SetSliderRange(rootSlider, rootMax);
             SetSliderRange(fruitSlider, fruitMax);
 
-            // Restore values (will be automatically clamped by Unity)
-            if (leafSlider != null) leafSlider.value = currentLeaf;
-            if (rootSlider != null) rootSlider.value = currentRoot;
-            if (fruitSlider != null) fruitSlider.value = currentFruit;
+            // Values are already clamped by Unity when we changed the range
+            // No need to manually restore them
+
+            // Re-add listeners
+            if (leafSlider != null) leafSlider.onValueChanged.AddListener(OnSliderValueChanged);
+            if (rootSlider != null) rootSlider.onValueChanged.AddListener(OnSliderValueChanged);
+            if (fruitSlider != null) fruitSlider.onValueChanged.AddListener(OnSliderValueChanged);
         }
     }
 }
