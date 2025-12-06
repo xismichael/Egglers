@@ -4959,10 +4959,10 @@ MonoBehaviour:
   plantTickRate: 1
   sourcesSetup:
   - position: {x: 7, y: 7}
-    spreadRate: 75
-    strength: 2
-    resistance: 0
-    pulseRate: 5
+    spreadRate: 2
+    strength: 4
+    resistance: 2
+    pulseRate: 10
     dormantDuration: 0
   focusedTile: {fileID: 0}
 --- !u!1 &519588064

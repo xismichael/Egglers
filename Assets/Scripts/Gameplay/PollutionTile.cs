@@ -31,7 +31,7 @@ namespace Egglers
         public float GetInfectionRate()
         {
             //between 30 and 10seconds, scaled by pollution spread rate
-            float percentage = Mathf.Clamp01(pollutionSpreadRate / 75f);
+            float percentage = Mathf.Clamp01(pollutionSpreadRate / 15f);
             return 30f - (percentage * 20f);
         }
 
@@ -141,7 +141,7 @@ namespace Egglers
             }
 
             //damag gets reduced by pollution resistance
-            float resistanceScale = Mathf.Max(0f, 1 - (pollutionResistance/75f + 0.5f));
+            float resistanceScale = Mathf.Max(0f, 1 - (pollutionResistance/15f + 0.5f));
 
             float damage = Mathf.Min(amount * resistanceScale, currentTotal);
             float ratio = damage / currentTotal;
@@ -177,7 +177,7 @@ namespace Egglers
             }
             plant.isInfected = true;
             GridEvents.PlantUpdated(plant.position);
-            float maxThreshold = plant.attackDamage * (1 + (0.5f - 0.5f * pollutionResistance * 0.9f / 75f));
+            float maxThreshold = plant.attackDamage * (1 + (0.5f - 0.5f * pollutionResistance * 0.9f / 15f));
             if (pollutionStrength * 0.9f > maxThreshold)
             {
                 plant.phase = PlantBitPhase.FullyInfected;

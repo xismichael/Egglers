@@ -42,9 +42,9 @@ namespace Egglers
         [SerializeField] private string baseColorProperty = "_BaseColor";
         [SerializeField] private string voroniColorProperty = "_voroniColor";
 
-        private const float SpreadNormalization = 75f;
-        private const float StrengthNormalization = 75f;
-        private const float ResistanceNormalization = 75f;
+        private const float SpreadNormalization = 9f;
+        private const float StrengthNormalization = 9f;
+        private const float ResistanceNormalization = 9f;
 
 
         private MaterialPropertyBlock pollutionPropertyBlock;
