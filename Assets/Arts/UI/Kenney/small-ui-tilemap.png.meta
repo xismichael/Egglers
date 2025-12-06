@@ -122,10 +122,10 @@ TextureImporter:
       name: small-ui-tilemap_1
       rect:
         serializedVersion: 2
-        x: 17
-        y: 102
-        width: 16
-        height: 16
+        x: 19
+        y: 104
+        width: 12
+        height: 12
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -607,12 +607,12 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 51
-        y: 85
+        y: 88
         width: 16
-        height: 16
+        height: 10
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
+      border: {x: 2, y: 2, z: 2, w: 2}
       customData: 
       outline: []
       physicsShape: []
@@ -1486,13 +1486,13 @@ TextureImporter:
       name: small-ui-tilemap_63
       rect:
         serializedVersion: 2
-        x: 51
-        y: 51
-        width: 16
-        height: 16
+        x: 54
+        y: 54
+        width: 10
+        height: 10
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
+      border: {x: 3, y: 3, z: 3, w: 3}
       customData: 
       outline: []
       physicsShape: []
@@ -1508,13 +1508,13 @@ TextureImporter:
       name: small-ui-tilemap_64
       rect:
         serializedVersion: 2
-        x: 68
-        y: 51
-        width: 16
-        height: 16
+        x: 72
+        y: 55
+        width: 8
+        height: 8
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
-      border: {x: 0, y: 0, z: 0, w: 0}
+      border: {x: 2, y: 2, z: 2, w: 2}
       customData: 
       outline: []
       physicsShape: []
