@@ -250,22 +250,44 @@ namespace Egglers
         /// <summary>
         /// Sets only the specified plant active (by index 0-2), disables others.
         /// </summary>
-        public void SetActivePlantByIndex(int index)
+        public void SetActivePlantByIndex(params int[] indices)
         {
-            if (bud != null) bud.SetActive(index == 0);
-            if (grown != null) grown.SetActive(index == 1);
-            if (motherPlant != null) motherPlant.SetActive(index == 2);
-            if (budInfected != null) budInfected.SetActive(index == 3);
+            // Disable all first
+            if (bud != null) bud.SetActive(false);
+            if (grown != null) grown.SetActive(false);
+            if (motherPlant != null) motherPlant.SetActive(false);
+            if (budInfected != null) budInfected.SetActive(false);
 
-            if (grownFruit != null) grownFruit.SetActive(index == 4);
-            if (grownFruitMax != null) grownFruitMax.SetActive(index == 5);
-            if (grownLeafMax != null) grownLeafMax.SetActive(index == 6);
+            if (grownFruit != null) grownFruit.SetActive(false);
+            if (grownFruitMax != null) grownFruitMax.SetActive(false);
+            if (grownLeafMax != null) grownLeafMax.SetActive(false);
 
-            if (budInfectedLeaf != null) budInfectedLeaf.SetActive(index == 7);
-            if (budInfectedFruit != null) budInfectedFruit.SetActive(index == 8);
+            if (budInfectedLeaf != null) budInfectedLeaf.SetActive(false);
+            if (budInfectedFruit != null) budInfectedFruit.SetActive(false);
+
+            if (root != null) root.SetActive(false);
+
+            // Enable selected
+            foreach (int index in indices)
+            {
+                switch (index)
+                {
+                    case 0: if (bud != null) bud.SetActive(true); break;
+                    case 1: if (grown != null) grown.SetActive(true); break;
+                    case 2: if (motherPlant != null) motherPlant.SetActive(true); break;
+                    case 3: if (budInfected != null) budInfected.SetActive(true); break;
+
+                    case 4: if (grownFruit != null) grownFruit.SetActive(true); break;
+                    case 5: if (grownFruitMax != null) grownFruitMax.SetActive(true); break;
+                    case 6: if (grownLeafMax != null) grownLeafMax.SetActive(true); break;
+
+                    case 7: if (budInfectedLeaf != null) budInfectedLeaf.SetActive(true); break;
+                    case 8: if (budInfectedFruit != null) budInfectedFruit.SetActive(true); break;
+
+                    case 9: if (root != null) root.SetActive(true); break;
+                }
+            }
         }
-
-
 
         /// <summary>
         /// Sets billboard or TMP text for the tile.
@@ -290,66 +312,79 @@ namespace Egglers
                 return;
             }
 
-            // Heart always overrides visuals
             if (bit.isHeart)
             {
                 SetActivePlantByIndex(2);
                 return;
             }
 
-            // Determine which component type is dominant
+            // Component totals
             int leaf = bit.leafCount + bit.graftedLeafCount;
             int root = bit.rootCount + bit.graftedRootCount;
             int fruit = bit.fruitCount + bit.graftedFruitCount;
 
+            // Determine dominant type
             string dominant = "root";
 
             if (leaf >= root && leaf >= fruit) dominant = "leaf";
             else if (fruit >= leaf && fruit >= root) dominant = "fruit";
 
-            // Handle infection phase first
+            // Threshold (must exceed 1/3 of max to show max version)
+            bool leafIsMax = leaf > bit.maxComponentCount / 3f;
+            bool fruitIsMax = fruit > bit.maxComponentCount / 3f;
+            bool rootIsMax = root > bit.maxComponentCount / 3f;
+
+            // Infection
             if (bit.phase == PlantBitPhase.FullyInfected)
             {
                 switch (dominant)
                 {
                     case "leaf":
-                        SetActivePlantByIndex(7); // budInfectedLeaf
+                        SetActivePlantByIndex(7);
                         break;
-
                     case "fruit":
-                        SetActivePlantByIndex(8); // budInfectedFruit
+                        SetActivePlantByIndex(8);
                         break;
-
                     case "root":
-                        SetActivePlantByIndex(3); // budInfected
+                        // infected root is just budInfected
+                        SetActivePlantByIndex(3);
                         break;
                 }
                 return;
             }
 
-            // Handle non-infected phases
-            switch (bit.phase)
+            // Bud stage (ignores specials)
+            if (bit.phase == PlantBitPhase.Bud)
             {
-                case PlantBitPhase.Bud:
-                    // All buds use the same prefab for now
-                    SetActivePlantByIndex(0);
+                SetActivePlantByIndex(0);
+                return;
+            }
+
+            // Grown stage
+            switch (dominant)
+            {
+                case "leaf":
+                    if (leafIsMax)
+                        SetActivePlantByIndex(6); // grownLeafMax
+                    else
+                        SetActivePlantByIndex(1); // grown
                     break;
 
-                case PlantBitPhase.Grown:
-                    switch (dominant)
-                    {
-                        case "leaf":
-                            SetActivePlantByIndex(6); // grownLeafMax
-                            break;
+                case "fruit":
+                    if (fruitIsMax)
+                        SetActivePlantByIndex(5); // grownFruitMax
+                    else
+                        SetActivePlantByIndex(4); // grownFruit
+                    break;
 
-                        case "fruit":
-                            SetActivePlantByIndex(4); // grownFruit
-                            break;
-
-                        case "root":
-                            SetActivePlantByIndex(1); // grown
-                            break;
-                    }
+                case "root":
+                    // ROOT RULE:
+                    // Always show grown base +
+                    // show rootMax *only if* root > 1/3 max
+                    if (rootIsMax)
+                        SetActivePlantByIndex(1, 9); // grown + rootMax
+                    else
+                        SetActivePlantByIndex(1); // grown only
                     break;
             }
         }
