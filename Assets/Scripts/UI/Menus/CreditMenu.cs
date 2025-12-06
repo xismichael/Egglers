@@ -33,6 +33,7 @@ namespace Egglers
         private void OnExitClicked()
         {
             UIManager.Instance.GoToMenu(GameMenuID.Main);
+            SoundManager.Instance.PlayButtonClick();
         }
         
         private void OnDestroy()
