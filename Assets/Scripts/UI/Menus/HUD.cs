@@ -2,7 +2,7 @@ using TMPro;
 using UnityEngine;
 
 namespace Egglers
-{   
+{
     /// <summary>
     /// HUD displays key game stats: energy, graft buffer, and pollution sources
     /// </summary>
@@ -14,7 +14,7 @@ namespace Egglers
 
         [Header("Pollution Sources Display")]
         [SerializeField] private TMP_Text pollutionSourcesText;
-        
+
         private int totalPollutionSources = 0;
 
         [Header("Game State Display")]
@@ -69,12 +69,12 @@ namespace Egglers
         protected override void InnerUpdate()
         {
             base.InnerUpdate();
-            
+
             if (isActive)
             {
                 UpdateHUD();
                 CheckHoverState();
-                
+
                 if (plantInfo != null && plantInfo.activeSelf)
                 {
                     UpdatePlantInfo();
@@ -99,13 +99,7 @@ namespace Egglers
         {
             UIManager.Instance.SetCursorVisible(true);
             base.OpenMenu();
-            
-            // HUD should not block raycasts so tiles can be hovered
-            if (canvasGroup != null)
-            {
-                canvasGroup.blocksRaycasts = false;
-            }
-            
+
             InitializePollutionSourceCount();
             UpdateHUD();
         }
@@ -137,7 +131,7 @@ namespace Egglers
         private void UpdateEnergyDisplay()
         {
             PlantBitManager plantManager = PlantBitManager.Instance;
-            
+
             if (energyText != null)
             {
                 string bar = CreateProgressBar((int)plantManager.currentEnergy, (int)plantManager.maxEnergy, energyBarLength);
@@ -148,21 +142,21 @@ namespace Egglers
         private void UpdatePollutionSourcesDisplay()
         {
             PollutionManager pollutionManager = PollutionManager.Instance;
-            
+
             if (pollutionSourcesText != null && pollutionManager != null)
             {
                 int currentSources = pollutionManager.pollutionSources.Count;
-                
+
                 // Update total if we haven't captured it yet
                 if (totalPollutionSources == 0 || currentSources > totalPollutionSources)
                 {
                     totalPollutionSources = currentSources;
                 }
-                
+
                 // Multiply by 2 so each source takes up 2 blocks in the bar
                 int barCurrent = currentSources * 2;
                 int barMax = totalPollutionSources * 2;
-                
+
                 // Bar length is exactly the max number of blocks needed
                 string bar = CreateProgressBar(barCurrent, barMax, barMax);
                 pollutionSourcesText.text = $"Pollution Sources: {bar} {currentSources}/{totalPollutionSources}";
@@ -175,23 +169,23 @@ namespace Egglers
         private string CreateProgressBar(int current, int max, int barLength)
         {
             if (max <= 0) return "[          ]";
-            
+
             // Calculate how many blocks should be filled (remaining sources = filled blocks)
             float ratio = (float)current / max;
             int filledBlocks = Mathf.RoundToInt(ratio * barLength);
             int emptyBlocks = barLength - filledBlocks;
-            
+
             // Build the bar string
             string filled = new string('█', filledBlocks);
             string empty = new string('░', emptyBlocks);
-            
+
             return $"[{filled}{empty}]";
         }
 
         private void UpdateGameStateDisplay()
         {
             GameManager gameManager = GameManager.Instance;
-            
+
             if (gameStateText != null)
             {
                 string stateDisplay = gameManager.gameState switch
@@ -202,7 +196,7 @@ namespace Egglers
                     GameState.Lost => "Defeat",
                     _ => ""
                 };
-                
+
                 gameStateText.text = stateDisplay;
             }
         }
@@ -230,10 +224,10 @@ namespace Egglers
             }
 
             Vector2Int coords = visualTile.coords;
-            
+
             bool hasPlant = false;
             bool hasPollution = false;
-            
+
             // Check for plant at this position
             PlantBit plant = GameManager.Instance.gameGrid.GetEntity<PlantBit>(coords);
             if (plant != null)
@@ -288,8 +282,8 @@ namespace Egglers
         {
             if (plantPhaseText != null)
             {
-                string phaseStr = plant.phase == PlantBitPhase.Bud ? "Bud" : 
-                                  plant.phase == PlantBitPhase.Grown ? "Grown" : 
+                string phaseStr = plant.phase == PlantBitPhase.Bud ? "Bud" :
+                                  plant.phase == PlantBitPhase.Grown ? "Grown" :
                                   plant.phase == PlantBitPhase.FullyInfected ? "FullyInfected" : "Unknown";
                 if (plant.isHeart) phaseStr = "Heart";
                 if (plant.isInfected) phaseStr += " (Infected)";
