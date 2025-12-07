@@ -252,7 +252,7 @@ namespace Egglers
             if (graftBufferText != null && PlantBitManager.Instance != null)
             {
                 GraftBuffer buffer = PlantBitManager.Instance.graftBuffer;
-                
+
                 if (buffer.hasContent)
                 {
                     graftBufferText.text = $"Graft Buffer: L:{buffer.leafCount} R:{buffer.rootCount} F:{buffer.fruitCount}";
@@ -605,8 +605,8 @@ namespace Egglers
         private void OnGraftModeToggleClicked()
         {
             // Toggle between Apply and Remove modes
-            currentGraftMode = currentGraftMode == GraftMode.ApplyGraft 
-                ? GraftMode.RemoveGraft 
+            currentGraftMode = currentGraftMode == GraftMode.ApplyGraft
+                ? GraftMode.RemoveGraft
                 : GraftMode.ApplyGraft;
 
             // Update scrollbars for the new mode (and reset values)
@@ -665,13 +665,13 @@ namespace Egglers
             {
                 // Check if buffer has enough components
                 GraftBuffer buffer = PlantBitManager.Instance.graftBuffer;
-                
+
                 if (!buffer.hasContent)
                 {
                     ShowLogMessage("Buffer is empty! Use Remove mode to harvest components first");
                     return;
                 }
-                
+
                 if (leafAmount > buffer.leafCount || rootAmount > buffer.rootCount || fruitAmount > buffer.fruitCount)
                 {
                     ShowLogMessage("Not enough components in buffer");
@@ -743,7 +743,7 @@ namespace Egglers
                 SetSliderRange(leafSlider, 0);
                 SetSliderRange(rootSlider, 0);
                 SetSliderRange(fruitSlider, 0);
-                
+
                 // Disable sliders
                 if (leafSlider != null) leafSlider.interactable = false;
                 if (rootSlider != null) rootSlider.interactable = false;
@@ -771,17 +771,17 @@ namespace Egglers
                 // Apply mode: max = min(buffer amount, components left)
                 int componentsLeft = plant.maxComponentCount - plant.TotalComponents;
                 GraftBuffer buffer = PlantBitManager.Instance.graftBuffer;
-                
+
                 int leafMax = Mathf.Min(buffer.leafCount, componentsLeft);
                 int rootMax = Mathf.Min(buffer.rootCount, componentsLeft);
                 int fruitMax = Mathf.Min(buffer.fruitCount, componentsLeft);
-                
+
                 // Log warning if buffer is empty
                 if (buffer.TotalComponents == 0 && resetValues)
                 {
                     ShowLogMessage("Graft buffer is empty! Use Remove mode first");
                 }
-                
+
                 SetSliderRange(leafSlider, leafMax);
                 SetSliderRange(rootSlider, rootMax);
                 SetSliderRange(fruitSlider, fruitMax);
@@ -846,7 +846,7 @@ namespace Egglers
 
             // Update max values for each slider based on buffer and remaining slots
             GraftBuffer buffer = PlantBitManager.Instance.graftBuffer;
-            
+
             int leafMax = Mathf.Min(buffer.leafCount, leafAmount + remainingSlots);
             int rootMax = Mathf.Min(buffer.rootCount, rootAmount + remainingSlots);
             int fruitMax = Mathf.Min(buffer.fruitCount, fruitAmount + remainingSlots);
