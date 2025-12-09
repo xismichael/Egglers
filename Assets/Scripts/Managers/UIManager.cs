@@ -10,8 +10,6 @@ namespace Egglers
         Main,
         Credits,
         HUD,
-        TileMenu,
-        GraftMenu,
         GameOver,
     }
 

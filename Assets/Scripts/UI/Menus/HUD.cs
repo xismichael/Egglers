@@ -46,17 +46,23 @@ namespace Egglers
         [SerializeField] private TMP_Text plantInfoExtractionText;
         [SerializeField] private TMP_Text plantInfoAttackText;
         [SerializeField] private TMP_Text plantInfoStorageText;
+        [SerializeField] private TMP_Text plantInfoMaintenanceText;
         [SerializeField] private TMP_Text plantInfoMaxComponentsText;
         [SerializeField] private TMP_Text plantInfoInfectionText;
+        [SerializeField] private TMP_Text plantInfoSpreadTimerLabelText;
         [SerializeField] private UnityEngine.UI.Button nipButton;
         [SerializeField] private UnityEngine.UI.Button sproutButton;
 
         [Header("Grafting UI")]
         [SerializeField] private TMP_Text graftBufferText;
+        [SerializeField] private TMP_Text graftModeText;
         [SerializeField] private UnityEngine.UI.Button graftModeToggleButton;
         [SerializeField] private UnityEngine.UI.Slider leafSlider;
         [SerializeField] private UnityEngine.UI.Slider rootSlider;
         [SerializeField] private UnityEngine.UI.Slider fruitSlider;
+        [SerializeField] private TMP_Text leafValueText;
+        [SerializeField] private TMP_Text rootValueText;
+        [SerializeField] private TMP_Text fruitValueText;
         [SerializeField] private UnityEngine.UI.Button graftApplyButton;
 
         [Header("Log Message")]
@@ -244,23 +250,6 @@ namespace Egglers
                 };
 
                 gameStateText.text = stateDisplay;
-            }
-        }
-
-        private void UpdateGraftBufferDisplay()
-        {
-            if (graftBufferText != null && PlantBitManager.Instance != null)
-            {
-                GraftBuffer buffer = PlantBitManager.Instance.graftBuffer;
-
-                if (buffer.hasContent)
-                {
-                    graftBufferText.text = $"Graft Buffer: L:{buffer.leafCount} R:{buffer.rootCount} F:{buffer.fruitCount}";
-                }
-                else
-                {
-                    graftBufferText.text = "Graft Buffer: Empty";
-                }
             }
         }
 
@@ -488,43 +477,45 @@ namespace Egglers
                 return;
             }
 
-            if (plantInfoExtractionText != null)
-            {
-                plantInfoExtractionText.text = $"Extraction: {plant.extractionRate:F1}/tick";
-            }
-
-            if (plantInfoAttackText != null)
-            {
-                plantInfoAttackText.text = $"Atk: {plant.attackDamage:F1}";
-            }
-
-            if (plantInfoStorageText != null)
-            {
-                plantInfoStorageText.text = $"Storage: {plant.energyStorage:F1}";
-            }
-
-            if (plantInfoMaxComponentsText != null)
-            {
-                plantInfoMaxComponentsText.text = $"Max Components: {plant.TotalComponents}/{plant.maxComponentCount}";
-            }
-
             if (plantInfoInfectionText != null)
             {
                 if (plant.isInfected && plant.phase != PlantBitPhase.FullyInfected)
                 {
                     float infectionPercent = PollutionManager.Instance.CheckPlantInfection(plant);
                     string bar = CreateProgressBar((int)(infectionPercent * 100), 100, 10);
-                    plantInfoInfectionText.text = $"{bar} {(infectionPercent * 100):F0}% infected";
+                    plantInfoInfectionText.text = $"{bar} {(infectionPercent * 100):F0}%";
                 }
                 else if (plant.phase == PlantBitPhase.FullyInfected)
                 {
                     string bar = CreateProgressBar(100, 100, 10);
-                    plantInfoInfectionText.text = $"{bar} 100% infected";
+                    plantInfoInfectionText.text = $"{bar} 100%";
                 }
                 else
                 {
                     string bar = CreateProgressBar(0, 100, 10);
-                    plantInfoInfectionText.text = $"{bar} 0% infected";
+                    plantInfoInfectionText.text = $"{bar} 0%";
+                }
+            }
+
+            // Update spread timer for fully infected plants
+            if (plant.phase == PlantBitPhase.FullyInfected && plant.infectionCoroutine != null)
+            {
+                // Calculate time elapsed and remaining
+                float elapsed = Time.time - plant.infectionSpreadStartTime;
+                float remaining = Mathf.Max(0, plant.infectionSpreadDuration - elapsed);
+                
+                // Label with countdown
+                if (plantInfoSpreadTimerLabelText != null)
+                {
+                    plantInfoSpreadTimerLabelText.text = $"Spreads in {remaining:F1}s";
+                }
+            }
+            else
+            {
+                // Hide the spread timer if not fully infected or not spreading
+                if (plantInfoSpreadTimerLabelText != null)
+                {
+                    plantInfoSpreadTimerLabelText.text = "";
                 }
             }
 
@@ -544,54 +535,102 @@ namespace Egglers
                 lastFocusedTileForGrafting = GameManager.Instance.focusedTile;
                 UpdateGraftScrollbars(resetValues: true);
             }
+            else
+            {
+                // Keep scrollbar max values updated even if tile hasn't changed
+                // (buffer or plant state might have changed)
+                UpdateGraftScrollbars(resetValues: false);
+            }
 
-            // Update graft button text
+            // Update graft UI
             UpdateGraftModeButtonText();
+            UpdateGraftModeIndicator();
+            UpdateGraftBufferDisplay();
+            UpdateGraftPreview(plant);
         }
 
         private void OnNipButtonClicked()
         {
+            Debug.Log("[HUD] OnNipButtonClicked called");
+            
             if (GameManager.Instance == null || GameManager.Instance.focusedTile == null) return;
 
             GridVisualTile visualTile = GameManager.Instance.focusedTile.GetComponent<GridVisualTile>();
             if (visualTile == null) return;
 
             PlantBit plant = GameManager.Instance.gameGrid.GetEntity<PlantBit>(visualTile.coords);
-            if (plant != null && !plant.isHeart)
+            if (plant == null) return;
+            
+            // Nip the plant (checks isHeart internally)
+            bool success = plant.Nip();
+            
+            if (success)
             {
-                PlantBitManager.Instance.NipPlantBit(plant);
-                float refund = plant.sproutCost * 0.25f;
-                ShowLogMessage($"Plant nipped! Refunded {refund:F1} energy");
                 ClosePlantInfo();
+                SoundManager.Instance.PlayButtonClick();
             }
-
-            SoundManager.Instance.PlayButtonClick();
         }
 
         private void OnSproutButtonClicked()
         {
-            if (GameManager.Instance == null || GameManager.Instance.focusedTile == null) return;
-
-            GridVisualTile visualTile = GameManager.Instance.focusedTile.GetComponent<GridVisualTile>();
-            if (visualTile == null) return;
-
-            PlantBit plant = GameManager.Instance.gameGrid.GetEntity<PlantBit>(visualTile.coords);
-            if (plant != null && plant.phase == PlantBitPhase.Grown && !plant.isInfected)
+            Debug.Log("[HUD] OnSproutButtonClicked called");
+            
+            if (GameManager.Instance == null || GameManager.Instance.focusedTile == null)
             {
-                float currentEnergy = PlantBitManager.Instance.currentEnergy;
-                float cost = plant.sproutCost;
-
-                if (currentEnergy < cost)
-                {
-                    ShowLogMessage($"Not enough energy! Current: {currentEnergy:F0} Required: {cost:F0}");
-                    return;
-                }
-
-                plant.AttemptSprout(true);
-                ShowLogMessage($"Sprouted! Cost: {cost:F0} energy");
+                ShowLogMessage("No plant selected");
+                return;
             }
 
-            SoundManager.Instance.PlayButtonClick();
+            GridVisualTile visualTile = GameManager.Instance.focusedTile.GetComponent<GridVisualTile>();
+            if (visualTile == null)
+            {
+                ShowLogMessage("Invalid tile");
+                return;
+            }
+
+            PlantBit plant = GameManager.Instance.gameGrid.GetEntity<PlantBit>(visualTile.coords);
+            if (plant == null)
+            {
+                ShowLogMessage("No plant on this tile");
+                return;
+            }
+            
+            if (plant.phase != PlantBitPhase.Grown)
+            {
+                ShowLogMessage("Plant must be grown to sprout");
+                SoundManager.Instance.PlayError();
+                return;
+            }
+            
+            if (plant.isInfected)
+            {
+                ShowLogMessage("Cannot sprout infected plant");
+                SoundManager.Instance.PlayError();
+                return;
+            }
+
+            float currentEnergy = PlantBitManager.Instance.currentEnergy;
+            float cost = plant.sproutCost;
+
+            if (currentEnergy < cost)
+            {
+                ShowLogMessage($"Not enough energy! Current: {currentEnergy:F0} Required: {cost:F0}");
+                SoundManager.Instance.PlayError();
+                return;
+            }
+
+            bool success = plant.AttemptSprout(true);
+            
+            if (success)
+            {
+                ShowLogMessage($"Sprouted! Cost: {cost:F0} energy");
+                SoundManager.Instance.PlayButtonClick();
+            }
+            else
+            {
+                ShowLogMessage("No available spots to sprout (neighbors blocked or polluted)");
+                SoundManager.Instance.PlayError();
+            }
         }
 
         public void ShowLogMessage(string message)
@@ -620,6 +659,8 @@ namespace Egglers
 
         private void OnGraftApplyClicked()
         {
+            Debug.Log("[HUD] OnGraftApplyClicked called");
+            
             if (GameManager.Instance == null || GameManager.Instance.focusedTile == null)
             {
                 ShowLogMessage("No plant selected");
@@ -648,12 +689,24 @@ namespace Egglers
                 return;
             }
 
+            // Check if plant is fully infected (can't graft fully infected)
+            if (plant.phase == PlantBitPhase.FullyInfected)
+            {
+                ShowLogMessage("Cannot graft a fully infected plant");
+                SoundManager.Instance.PlayError();
+                return;
+            }
+
             // Get slider values (already integers due to wholeNumbers = true)
-            int leafAmount = (int)leafSlider.value;
-            int rootAmount = (int)rootSlider.value;
-            int fruitAmount = (int)fruitSlider.value;
+            int leafAmount = leafSlider != null ? (int)leafSlider.value : 0;
+            int rootAmount = rootSlider != null ? (int)rootSlider.value : 0;
+            int fruitAmount = fruitSlider != null ? (int)fruitSlider.value : 0;
+            
+            Debug.Log($"[HUD] Slider values - Leaf: {leafAmount}, Root: {rootAmount}, Fruit: {fruitAmount}");
 
             int totalAmount = leafAmount + rootAmount + fruitAmount;
+            
+            Debug.Log($"[HUD] Total amount: {totalAmount}, Current mode: {currentGraftMode}");
 
             if (totalAmount == 0)
             {
@@ -665,6 +718,8 @@ namespace Egglers
             {
                 // Check if buffer has enough components
                 GraftBuffer buffer = PlantBitManager.Instance.graftBuffer;
+                
+                Debug.Log($"[HUD] Buffer contents - Leaf: {buffer.leafCount}, Root: {buffer.rootCount}, Fruit: {buffer.fruitCount}");
 
                 if (!buffer.hasContent)
                 {
@@ -675,11 +730,14 @@ namespace Egglers
                 if (leafAmount > buffer.leafCount || rootAmount > buffer.rootCount || fruitAmount > buffer.fruitCount)
                 {
                     ShowLogMessage("Not enough components in buffer");
+                    Debug.Log($"[HUD] Not enough in buffer. Requested L{leafAmount} R{rootAmount} F{fruitAmount}");
                     return;
                 }
 
                 // Check if plant has room for components
                 int componentsLeft = plant.maxComponentCount - plant.TotalComponents;
+                Debug.Log($"[HUD] Plant components: {plant.TotalComponents}/{plant.maxComponentCount}, Space left: {componentsLeft}");
+                
                 if (totalAmount > componentsLeft)
                 {
                     ShowLogMessage($"Plant can only hold {componentsLeft} more components");
@@ -687,13 +745,23 @@ namespace Egglers
                 }
 
                 // Apply the graft
-                plant.ApplyGraft(leafAmount, rootAmount, fruitAmount);
-                ShowLogMessage($"Applied graft: L{leafAmount} R{rootAmount} F{fruitAmount}");
-                Debug.Log($"[HUD] Applied graft to plant at {plant.position}: L{leafAmount} R{rootAmount} F{fruitAmount}");
-                GridEvents.PlantUpdated(plant.position);
+                bool success = plant.ApplyGraft(leafAmount, rootAmount, fruitAmount);
+                if (success)
+                {
+                    ShowLogMessage($"Applied graft: L{leafAmount} R{rootAmount} F{fruitAmount}");
+                    Debug.Log($"[HUD] Applied graft to plant at {plant.position}: L{leafAmount} R{rootAmount} F{fruitAmount}");
+                    GridEvents.PlantUpdated(plant.position);
+                }
+                else
+                {
+                    ShowLogMessage("Failed to apply graft - not enough energy!");
+                    return;
+                }
             }
             else // RemoveGraft
             {
+                Debug.Log($"[HUD] Remove mode - Plant natural components: L{plant.leafCount} R{plant.rootCount} F{plant.fruitCount}");
+                
                 // Check if plant has enough natural components to remove
                 if (leafAmount > plant.leafCount || rootAmount > plant.rootCount || fruitAmount > plant.fruitCount)
                 {
@@ -702,10 +770,18 @@ namespace Egglers
                 }
 
                 // Remove the graft (adds to buffer)
-                plant.RemoveGraft(leafAmount, rootAmount, fruitAmount);
-                ShowLogMessage($"Removed components: L{leafAmount} R{rootAmount} F{fruitAmount}");
-                Debug.Log($"[HUD] Removed components from plant at {plant.position}: L{leafAmount} R{rootAmount} F{fruitAmount}");
-                GridEvents.PlantUpdated(plant.position);
+                bool success = plant.RemoveGraft(leafAmount, rootAmount, fruitAmount);
+                if (success)
+                {
+                    ShowLogMessage($"Removed components: L{leafAmount} R{rootAmount} F{fruitAmount}");
+                    Debug.Log($"[HUD] Removed components from plant at {plant.position}: L{leafAmount} R{rootAmount} F{fruitAmount}");
+                    GridEvents.PlantUpdated(plant.position);
+                }
+                else
+                {
+                    ShowLogMessage("Failed to remove components - not enough energy!");
+                    return;
+                }
             }
 
             // Reset sliders after action
@@ -714,7 +790,8 @@ namespace Egglers
             if (fruitSlider != null) fruitSlider.value = 0;
 
             // Update the scrollbars to reflect new state
-            UpdateGraftScrollbars(resetValues: false); // Don't reset again, we just did it
+            // After Remove, the buffer contents changed, so we need to fully refresh the scrollbar ranges
+            UpdateGraftScrollbars(resetValues: false);
 
             SoundManager.Instance.PlayButtonClick();
         }
@@ -737,8 +814,8 @@ namespace Egglers
                 if (fruitSlider != null) fruitSlider.value = 0;
             }
 
-            // Can't graft buds
-            if (plant.phase == PlantBitPhase.Bud)
+            // Can't graft buds or fully infected plants
+            if (plant.phase == PlantBitPhase.Bud || plant.phase == PlantBitPhase.FullyInfected)
             {
                 SetSliderRange(leafSlider, 0);
                 SetSliderRange(rootSlider, 0);
@@ -805,7 +882,7 @@ namespace Egglers
             TMP_Text tmpText = graftModeToggleButton.GetComponentInChildren<TMP_Text>();
             if (tmpText != null)
             {
-                tmpText.text = currentGraftMode == GraftMode.ApplyGraft ? "Apply Graft" : "Remove Graft";
+                tmpText.text = currentGraftMode == GraftMode.ApplyGraft ? "Apply" : "Remove";
                 return;
             }
 
@@ -813,7 +890,7 @@ namespace Egglers
             UnityEngine.UI.Text legacyText = graftModeToggleButton.GetComponentInChildren<UnityEngine.UI.Text>();
             if (legacyText != null)
             {
-                legacyText.text = currentGraftMode == GraftMode.ApplyGraft ? "Apply Graft" : "Remove Graft";
+                legacyText.text = currentGraftMode == GraftMode.ApplyGraft ? "Apply" : "Remove";
             }
         }
 
@@ -863,6 +940,128 @@ namespace Egglers
             if (leafSlider != null) leafSlider.onValueChanged.AddListener(OnSliderValueChanged);
             if (rootSlider != null) rootSlider.onValueChanged.AddListener(OnSliderValueChanged);
             if (fruitSlider != null) fruitSlider.onValueChanged.AddListener(OnSliderValueChanged);
+        }
+
+        private void UpdateGraftModeIndicator()
+        {
+            if (graftModeText == null) return;
+
+            string modeString = currentGraftMode == GraftMode.ApplyGraft ? "APPLY" : "REMOVE";
+            graftModeText.text = $"MODE: {modeString}";
+        }
+
+        private void UpdateGraftBufferDisplay()
+        {
+            if (graftBufferText == null || PlantBitManager.Instance == null) return;
+
+            GraftBuffer buffer = PlantBitManager.Instance.graftBuffer;
+            graftBufferText.text = $"Buffer: L{buffer.leafCount} R{buffer.rootCount} F{buffer.fruitCount}";
+        }
+
+        private void UpdateGraftPreview(PlantBit plant)
+        {
+            if (plant == null) return;
+
+            // Get current slider values
+            int leafAmount = leafSlider != null ? (int)leafSlider.value : 0;
+            int rootAmount = rootSlider != null ? (int)rootSlider.value : 0;
+            int fruitAmount = fruitSlider != null ? (int)fruitSlider.value : 0;
+
+            // Update slider value displays
+            if (leafValueText != null)
+            {
+                leafValueText.text = leafAmount.ToString();
+            }
+
+            if (rootValueText != null)
+            {
+                rootValueText.text = rootAmount.ToString();
+            }
+
+            if (fruitValueText != null)
+            {
+                fruitValueText.text = fruitAmount.ToString();
+            }
+
+            // Calculate preview stats based on mode
+            float previewExtraction, previewAttack, previewStorage, previewMaintenance;
+
+            if (currentGraftMode == GraftMode.ApplyGraft)
+            {
+                // Apply mode: add grafted components
+                int newGraftedLeaf = plant.graftedLeafCount + leafAmount;
+                int newGraftedRoot = plant.graftedRootCount + rootAmount;
+                int newGraftedFruit = plant.graftedFruitCount + fruitAmount;
+
+                previewExtraction = plant.CalculateStat(plant.leafCount, newGraftedLeaf, plant.data.leafMultiplier);
+                previewAttack = plant.CalculateStat(plant.rootCount, newGraftedRoot, plant.data.rootMultiplier);
+                previewStorage = plant.CalculateStat(plant.fruitCount, newGraftedFruit, plant.data.fruitMultiplier);
+                
+                // Calculate new maintenance cost
+                int newTotalComponents = plant.leafCount + newGraftedLeaf + plant.rootCount + newGraftedRoot + plant.fruitCount + newGraftedFruit;
+                previewMaintenance = plant.CalculateMaintenanceCostForComponents(newTotalComponents);
+            }
+            else // Remove mode
+            {
+                // Remove mode: subtract natural components
+                int newLeafCount = Mathf.Max(0, plant.leafCount - leafAmount);
+                int newRootCount = Mathf.Max(0, plant.rootCount - rootAmount);
+                int newFruitCount = Mathf.Max(0, plant.fruitCount - fruitAmount);
+
+                previewExtraction = plant.CalculateStat(newLeafCount, plant.graftedLeafCount, plant.data.leafMultiplier);
+                previewAttack = plant.CalculateStat(newRootCount, plant.graftedRootCount, plant.data.rootMultiplier);
+                previewStorage = plant.CalculateStat(newFruitCount, plant.graftedFruitCount, plant.data.fruitMultiplier);
+                
+                // Calculate new maintenance cost
+                int newTotalComponents = newLeafCount + plant.graftedLeafCount + newRootCount + plant.graftedRootCount + newFruitCount + plant.graftedFruitCount;
+                previewMaintenance = plant.CalculateMaintenanceCostForComponents(newTotalComponents);
+            }
+
+            // Update the existing plant info texts with current → preview (delta)
+            if (plantInfoExtractionText != null)
+            {
+                float delta = previewExtraction - plant.extractionRate;
+                string deltaStr = delta > 0 ? $"<color=green>+{delta:F1}</color>" : delta < 0 ? $"<color=red>{delta:F1}</color>" : "±0.0";
+                plantInfoExtractionText.text = $"Extract: {plant.extractionRate:F1} → {previewExtraction:F1} ({deltaStr})";
+            }
+
+            if (plantInfoAttackText != null)
+            {
+                float delta = previewAttack - plant.attackDamage;
+                string deltaStr = delta > 0 ? $"<color=green>+{delta:F1}</color>" : delta < 0 ? $"<color=red>{delta:F1}</color>" : "±0.0";
+                plantInfoAttackText.text = $"Atk: {plant.attackDamage:F1} → {previewAttack:F1} ({deltaStr})";
+            }
+
+            if (plantInfoStorageText != null)
+            {
+                float delta = previewStorage - plant.energyStorage;
+                string deltaStr = delta > 0 ? $"<color=green>+{delta:F1}</color>" : delta < 0 ? $"<color=red>{delta:F1}</color>" : "±0.0";
+                plantInfoStorageText.text = $"Storage: {plant.energyStorage:F1} → {previewStorage:F1} ({deltaStr})";
+            }
+
+            if (plantInfoMaintenanceText != null)
+            {
+                float delta = previewMaintenance - plant.maintenanceCost;
+                string deltaStr = delta > 0 ? $"<color=red>+{delta:F1}</color>" : delta < 0 ? $"<color=green>{delta:F1}</color>" : "±0.0";
+                plantInfoMaintenanceText.text = $"Maint: {plant.maintenanceCost:F1} → {previewMaintenance:F1} ({deltaStr})";
+            }
+
+            // Update component text based on mode
+            if (plantInfoMaxComponentsText != null)
+            {
+                if (currentGraftMode == GraftMode.ApplyGraft)
+                {
+                    // Apply mode: show slots available
+                    int componentsLeft = plant.maxComponentCount - plant.TotalComponents;
+                    plantInfoMaxComponentsText.text = $"Slots Available: {componentsLeft}";
+                }
+                else // Remove mode
+                {
+                    // Remove mode: show what's in the buffer
+                    GraftBuffer buffer = PlantBitManager.Instance.graftBuffer;
+                    plantInfoMaxComponentsText.text = $"Buffer: L{buffer.leafCount} R{buffer.rootCount} F{buffer.fruitCount}";
+                }
+            }
         }
     }
 }

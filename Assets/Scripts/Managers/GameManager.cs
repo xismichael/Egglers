@@ -113,7 +113,7 @@ namespace Egglers
 
             // Start heart placement mode
             gameState = GameState.HeartPlacement;
-            Debug.Log("Place the Heart to begin the game!");
+            //Debug.Log("Place the Heart to begin the game!");
         }
 
         public bool IsValidHeartPlacement(Vector2Int pos)
@@ -127,7 +127,7 @@ namespace Egglers
         {
             if (!IsValidHeartPlacement(pos))
             {
-                Debug.LogWarning("Invalid Heart placement position");
+                //Debug.LogWarning("Invalid Heart placement position");
                 SoundManager.Instance.PlayError();
 
                 return;
@@ -140,7 +140,7 @@ namespace Egglers
             StartGameLoops();
             // Start pollution source coroutines (each source pulses at its own rate)
             pollutionManager.StartAllSourcePulses();
-            Debug.Log("Game started!");
+            //Debug.Log("Game started!");
         }
 
         private void StartGameLoops()
@@ -181,7 +181,7 @@ namespace Egglers
             {
                 gameState = GameState.Won;
                 StopGameLoops();
-                Debug.Log("Victory! All pollution sources destroyed!");
+                //Debug.Log("Victory! All pollution sources destroyed!");
 
                 // Play victory sound
                 SoundManager.Instance.PlayVictory();
@@ -196,7 +196,7 @@ namespace Egglers
             {
                 gameState = GameState.Lost;
                 StopGameLoops();
-                Debug.Log("Defeat! The Heart has been overwhelmed by pollution!");
+                //Debug.Log("Defeat! The Heart has been overwhelmed by pollution!");
 
                 // Play defeat sound
                 SoundManager.Instance.PlayDefeat();

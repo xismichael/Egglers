@@ -1,145 +1,145 @@
-using System;
-using TMPro;
-using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.UI;
+// using System;
+// using TMPro;
+// using UnityEngine;
+// using UnityEngine.EventSystems;
+// using UnityEngine.UI;
 
-namespace Egglers
-{
-    /// <summary>
-    /// Graft menu, opened from tile menu
-    /// </summary>
-    public class GraftMenu : GameMenu
-    {
-        [SerializeField] private GridHighlighter highlightManager;
+// namespace Egglers
+// {
+//     /// <summary>
+//     /// Graft menu, opened from tile menu
+//     /// </summary>
+//     public class GraftMenu : GameMenu
+//     {
+//         [SerializeField] private GridHighlighter highlightManager;
 
-        // Set elements in editor
-        [SerializeField] private Button removeGraftButton;
-        [SerializeField] private Button backButton;
-        [SerializeField] private Slider leafSlider;
-        [SerializeField] private Slider rootSlider;
-        [SerializeField] private Slider fruitSlider;
-        [SerializeField] private TMP_Text leafText;
-        [SerializeField] private TMP_Text rootText;
-        [SerializeField] private TMP_Text fruitText;
-        [SerializeField] private TMP_Text tooltipText;
-        [SerializeField] private string defaultTooltip;
-
-
-        protected override void InnerAwake()
-        {
-            AddEssentialListeners();
-            base.InnerAwake();
-        }
+//         // Set elements in editor
+//         [SerializeField] private Button removeGraftButton;
+//         [SerializeField] private Button backButton;
+//         [SerializeField] private Slider leafSlider;
+//         [SerializeField] private Slider rootSlider;
+//         [SerializeField] private Slider fruitSlider;
+//         [SerializeField] private TMP_Text leafText;
+//         [SerializeField] private TMP_Text rootText;
+//         [SerializeField] private TMP_Text fruitText;
+//         [SerializeField] private TMP_Text tooltipText;
+//         [SerializeField] private string defaultTooltip;
 
 
-        public override void OpenMenu()
-        {
-            UIManager.Instance.SetCursorVisible(true);
-            base.OpenMenu();
-        }
+//         protected override void InnerAwake()
+//         {
+//             AddEssentialListeners();
+//             base.InnerAwake();
+//         }
 
-        public override void RefreshMenu()
-        {
-            RemoveListeners();
-            AddEssentialListeners();
 
-            highlightManager.SetSelectedTile(GameManager.Instance.focusedTile);
-            highlightManager.SetContextMenuOpen(true);
+//         public override void OpenMenu()
+//         {
+//             UIManager.Instance.SetCursorVisible(true);
+//             base.OpenMenu();
+//         }
 
-            tooltipText.gameObject.SetActive(true);
-            tooltipText.text = defaultTooltip;
+//         public override void RefreshMenu()
+//         {
+//             RemoveListeners();
+//             AddEssentialListeners();
 
-            // Set up remove graft button to pass slider values directly
-            removeGraftButton.onClick.AddListener(() =>
-            {
-                int leafVal = (int)leafSlider.value;
-                int rootVal = (int)rootSlider.value;
-                int fruitVal = (int)fruitSlider.value;
+//             highlightManager.SetSelectedTile(GameManager.Instance.focusedTile);
+//             highlightManager.SetContextMenuOpen(true);
 
-                GridVisualTile visual = GameManager.Instance.focusedTile.GetComponent<GridVisualTile>();
-                if (visual != null)
-                {
-                    PlantBitManager.Instance.RemoveGraftAtPosition(visual.coords, leafVal, rootVal, fruitVal);
-                    UIManager.Instance.GoToMenu(GameMenuID.HUD);
-                }
-            });
+//             tooltipText.gameObject.SetActive(true);
+//             tooltipText.text = defaultTooltip;
 
-            int currentLeaf = (int)leafSlider.value;
-            int currentRoot = (int)rootSlider.value;
-            int currentFruit = (int)fruitSlider.value;
+//             // Set up remove graft button to pass slider values directly
+//             removeGraftButton.onClick.AddListener(() =>
+//             {
+//                 int leafVal = (int)leafSlider.value;
+//                 int rootVal = (int)rootSlider.value;
+//                 int fruitVal = (int)fruitSlider.value;
 
-            leafText.text = currentLeaf.ToString();
-            rootText.text = currentRoot.ToString();
-            fruitText.text = currentFruit.ToString();
+//                 GridVisualTile visual = GameManager.Instance.focusedTile.GetComponent<GridVisualTile>();
+//                 if (visual != null)
+//                 {
+//                     PlantBitManager.Instance.RemoveGraftAtPosition(visual.coords, leafVal, rootVal, fruitVal);
+//                     UIManager.Instance.GoToMenu(GameMenuID.HUD);
+//                 }
+//             });
 
-            base.RefreshMenu();
-        }
+//             int currentLeaf = (int)leafSlider.value;
+//             int currentRoot = (int)rootSlider.value;
+//             int currentFruit = (int)fruitSlider.value;
 
-        public override void CloseMenu()
-        {
-            highlightManager.SetContextMenuOpen(false);
-            highlightManager.ClearSelectedTile();
+//             leafText.text = currentLeaf.ToString();
+//             rootText.text = currentRoot.ToString();
+//             fruitText.text = currentFruit.ToString();
 
-            RemoveListeners();
-            base.CloseMenu();
-        }
+//             base.RefreshMenu();
+//         }
 
-        void ShowTooltip(TileActions.TileAction action)
-        {
-            tooltipText.gameObject.SetActive(true);
-            tooltipText.text = GetTooltipText(action);
-        }
+//         public override void CloseMenu()
+//         {
+//             highlightManager.SetContextMenuOpen(false);
+//             highlightManager.ClearSelectedTile();
 
-        string GetTooltipText(TileActions.TileAction action)
-        {
-            return action.actionType switch
-            {
-                TileActionType.RemoveGraft => "Remove the graft.",
-                TileActionType.Plant1 => "Select Plant 1.",
-                TileActionType.Plant2 => "Select Plant 2.",
-                TileActionType.Plant3 => "Select Plant 3.",
-                TileActionType.Billboard => "Show a message.",
-                _ => "Select an action."
-            };
-        }
+//             RemoveListeners();
+//             base.CloseMenu();
+//         }
 
-        private void OnBackClicked()
-        {
-            Debug.Log("[GraftMenu] Going back to Tile Menu");
-            UIManager.Instance.GoToMenu(GameMenuID.TileMenu);
-        }
+//         void ShowTooltip(TileActions.TileAction action)
+//         {
+//             tooltipText.gameObject.SetActive(true);
+//             tooltipText.text = GetTooltipText(action);
+//         }
 
-        private void OnRemoveGraftClicked()
-        {
-            // Handled by RefreshMenu listener now
-        }
+//         string GetTooltipText(TileActions.TileAction action)
+//         {
+//             return action.actionType switch
+//             {
+//                 TileActionType.RemoveGraft => "Remove the graft.",
+//                 TileActionType.Plant1 => "Select Plant 1.",
+//                 TileActionType.Plant2 => "Select Plant 2.",
+//                 TileActionType.Plant3 => "Select Plant 3.",
+//                 TileActionType.Billboard => "Show a message.",
+//                 _ => "Select an action."
+//             };
+//         }
 
-        private void OnSliderValueChanged(float val)
-        {
-            UIManager.Instance.SetMenuDirty(GameMenuID.GraftMenu);
-        }
+//         private void OnBackClicked()
+//         {
+//             Debug.Log("[GraftMenu] Going back to Tile Menu");
+//             UIManager.Instance.GoToMenu(GameMenuID.TileMenu);
+//         }
 
-        private void OnDestroy()
-        {
-            RemoveListeners();
-        }
+//         private void OnRemoveGraftClicked()
+//         {
+//             // Handled by RefreshMenu listener now
+//         }
 
-        private void RemoveListeners()
-        {
-            removeGraftButton.onClick.RemoveAllListeners();
-            backButton.onClick.RemoveAllListeners();
-        }
+//         private void OnSliderValueChanged(float val)
+//         {
+//             UIManager.Instance.SetMenuDirty(GameMenuID.GraftMenu);
+//         }
 
-        private void AddEssentialListeners()
-        {
-            // Set default tooltip
-            backButton.onClick.AddListener(OnBackClicked);
-            removeGraftButton.onClick.AddListener(OnRemoveGraftClicked);
-            leafSlider.onValueChanged.AddListener(OnSliderValueChanged);
-            rootSlider.onValueChanged.AddListener(OnSliderValueChanged);
-            fruitSlider.onValueChanged.AddListener(OnSliderValueChanged);
-        }
-    }
-}
+//         private void OnDestroy()
+//         {
+//             RemoveListeners();
+//         }
+
+//         private void RemoveListeners()
+//         {
+//             removeGraftButton.onClick.RemoveAllListeners();
+//             backButton.onClick.RemoveAllListeners();
+//         }
+
+//         private void AddEssentialListeners()
+//         {
+//             // Set default tooltip
+//             backButton.onClick.AddListener(OnBackClicked);
+//             removeGraftButton.onClick.AddListener(OnRemoveGraftClicked);
+//             leafSlider.onValueChanged.AddListener(OnSliderValueChanged);
+//             rootSlider.onValueChanged.AddListener(OnSliderValueChanged);
+//             fruitSlider.onValueChanged.AddListener(OnSliderValueChanged);
+//         }
+//     }
+// }
 

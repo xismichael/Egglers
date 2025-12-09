@@ -22,7 +22,7 @@ namespace Egglers
 
         public void Update(int leaf, int root, int fruit)
         {
-            Debug.Log($"[PlantBitManager] GraftBuffer updated -> L:{leaf} R:{root} F:{fruit}");
+            //Debug.Log($"[PlantBitManager] GraftBuffer updated -> L:{leaf} R:{root} F:{fruit}");
             leafCount += leaf;
             rootCount += root;
             fruitCount += fruit;
@@ -31,7 +31,7 @@ namespace Egglers
 
         public void Clear()
         {
-            Debug.Log("[PlantBitManager] GraftBuffer cleared");
+            //Debug.Log("[PlantBitManager] GraftBuffer cleared");
             leafCount = 0;
             rootCount = 0;
             fruitCount = 0;
@@ -93,14 +93,14 @@ namespace Egglers
         /// </summary>
         public void Initialize(GridSystem sharedGrid)
         {
-            Debug.Log("[PlantBitManager] Initializing manager with shared grid");
+            //Debug.Log("[PlantBitManager] Initializing manager with shared grid");
             gameGrid = sharedGrid;
             graftBuffer = new GraftBuffer(0, 0, 0);
         }
 
         public void InitializeHeart(Vector2Int pos)
         {
-            Debug.Log($"[PlantBitManager] Initializing Heart at {pos}");
+            //Debug.Log($"[PlantBitManager] Initializing Heart at {pos}");
 
             heart = new PlantBit(pos, heartBitData, this, true,
                 heartStartingLeaf, heartStartingRoot, heartStartingFruit);
@@ -111,7 +111,7 @@ namespace Egglers
             maxEnergy = startingMaxEnergy;
             currentEnergy = startingEnergy;
 
-            Debug.Log($"[PlantBitManager] Heart placed at {pos} | Energy: {currentEnergy}/{maxEnergy}");
+            //Debug.Log($"[PlantBitManager] Heart placed at {pos} | Energy: {currentEnergy}/{maxEnergy}");
 
             GridEvents.PlantUpdated(pos);
             heart.AttemptSprout(false);
@@ -192,7 +192,7 @@ namespace Egglers
 
             if (totalGrowthCost > 0 && RemoveEnergy(totalGrowthCost))
             {
-                Debug.Log($"[PlantBitManager] Growing {healthyBuds.Count} buds, cost: {totalGrowthCost:F2}");
+                //Debug.Log($"[PlantBitManager] Growing {healthyBuds.Count} buds, cost: {totalGrowthCost:F2}");
                 
                 foreach (var bud in healthyBuds)
                 {
@@ -213,7 +213,7 @@ namespace Egglers
         {
             if (parent == null) return;
 
-            Debug.Log($"[PlantBitManager] Creating sprout at {targetPos} (parent: {parent.position})");
+            //Debug.Log($"[PlantBitManager] Creating sprout at {targetPos} (parent: {parent.position})");
 
             PlantBit child = new PlantBit(targetPos, plantBitData, parent);
             gameGrid.SetEntity(child);
@@ -226,11 +226,11 @@ namespace Egglers
         {
             if (plantBit == null) return;
 
-            Debug.Log($"[PlantBitManager] KillPlantBit called at {plantBit.position}");
+            //Debug.Log($"[PlantBitManager] KillPlantBit called at {plantBit.position}");
 
             if (plantBit == heart)
             {
-                Debug.Log("[PlantBitManager] GAME OVER: HEART IS DEAD");
+                //Debug.Log("[PlantBitManager] GAME OVER: HEART IS DEAD");
                 GameManager.Instance.TriggerLoss();
             }
 
@@ -244,7 +244,7 @@ namespace Egglers
         {
             if (plantBit == null) return;
 
-            Debug.Log($"[PlantBitManager] NipPlantBit called at {plantBit.position}");
+            //Debug.Log($"[PlantBitManager] NipPlantBit called at {plantBit.position}");
 
             plantBit.Nip();
         }
@@ -260,7 +260,7 @@ namespace Egglers
             maxEnergy = Mathf.Max(maxEnergy - amount, 0);
             currentEnergy = Mathf.Min(currentEnergy, maxEnergy);
 
-            Debug.Log($"[PlantBitManager] MaxEnergy decreased by {amount} → {maxEnergy} | currentEnergy={currentEnergy}");
+            //Debug.Log($"[PlantBitManager] MaxEnergy decreased by {amount} → {maxEnergy} | currentEnergy={currentEnergy}");
         }
 
         public void AddEnergy(float amount)
@@ -284,12 +284,12 @@ namespace Egglers
 
         public void ApplyGraftAtPosition(Vector2Int pos)
         {
-            Debug.Log($"[PlantBitManager] ApplyGraftAtPosition {pos}");
+            //Debug.Log($"[PlantBitManager] ApplyGraftAtPosition {pos}");
 
             PlantBit plantBit = gameGrid.GetEntity<PlantBit>(pos);
             if (plantBit == null || !graftBuffer.hasContent)
             {
-                Debug.Log($"[PlantBitManager] Cannot apply graft at {pos} (missing plant or empty graft buffer)");
+                //Debug.Log($"[PlantBitManager] Cannot apply graft at {pos} (missing plant or empty graft buffer)");
                 SoundManager.Instance.PlayError();
                 return;
             }
@@ -300,18 +300,18 @@ namespace Egglers
 
         public void RemoveGraftAtPosition(Vector2Int pos, int leaf, int root, int fruit)
         {
-            Debug.Log($"[PlantBitManager] RemoveGraftAtPosition {pos}");
+            //Debug.Log($"[PlantBitManager] RemoveGraftAtPosition {pos}");
 
             PlantBit plantBit = gameGrid.GetEntity<PlantBit>(pos);
             if (plantBit == null)
             {
-                Debug.Log($"[PlantBitManager] RemoveGraft failed at {pos}: no plant found");
+                //Debug.Log($"[PlantBitManager] RemoveGraft failed at {pos}: no plant found");
                 return;
             }
 
             if (plantBit.isHeart)
             {
-                Debug.Log($"[PlantBitManager] RemoveGraft failed at {pos}: Can't Graft Heart");
+                //Debug.Log($"[PlantBitManager] RemoveGraft failed at {pos}: Can't Graft Heart");
                 SoundManager.Instance.PlayError();
                 return;
             }
@@ -340,7 +340,7 @@ namespace Egglers
 
         private System.Collections.IEnumerator InfectionSpreadCoroutine(PlantBit infectedPlant, float spreadTimer)
         {
-            //Debug.Log($"[PlantBitManager] Infection spreading from {infectedPlant.position} in {spreadTimer} seconds");
+            Debug.Log($"[VIRUS] Infection coroutine started from {infectedPlant.position}, spreading in {spreadTimer}s");
             
             // Wait for the timer
             yield return new WaitForSeconds(spreadTimer);
@@ -348,28 +348,29 @@ namespace Egglers
             // Check if plant still exists and is still infected
             if (infectedPlant == null || !plantsAlive.Contains(infectedPlant))
             {
-                //Debug.Log($"[PlantBitManager] Infection spread cancelled - plant no longer exists");
+                Debug.Log($"[VIRUS] Infection spread cancelled - plant no longer exists");
                 yield break;
             }
 
             if (!infectedPlant.isInfected)
             {
-                //Debug.Log($"[PlantBitManager] Infection spread cancelled - plant is no longer infected");
+                Debug.Log($"[VIRUS] Infection spread cancelled - plant is no longer infected");
                 yield break;
             }
 
             // Spread to parent (virus goes UP the tree)
             if (infectedPlant.parent != null && !infectedPlant.parent.isInfected)
             {
-                //Debug.Log($"[PlantBitManager] Virus spreading from {infectedPlant.position} to parent {infectedPlant.parent.position}");
+                Debug.Log($"[VIRUS] ⬆️ Spreading UP from {infectedPlant.position} to PARENT {infectedPlant.parent.position}");
                 infectedPlant.parent.isInfected = true;
+                infectedPlant.parent.phase = PlantBitPhase.FullyInfected; // Virus spread is unstoppable
                 infectedPlant.parent.InfectionSpread(spreadTimer);
                 GridEvents.PlantUpdated(infectedPlant.parent.position);
 
                 // Check if parent is heart - GAME OVER
                 if (infectedPlant.parent.isHeart)
                 {
-                    //Debug.Log("[PlantBitManager] GAME OVER: HEART IS INFECTED!");
+                    Debug.Log("[VIRUS] ❌ HEART INFECTED - GAME OVER!");
                     GameManager.Instance.TriggerLoss();
                 }
             }
@@ -379,8 +380,9 @@ namespace Egglers
             {
                 if (child != null && !child.isInfected)
                 {
-                    //Debug.Log($"[PlantBitManager] Virus spreading from {infectedPlant.position} to child {child.position}");
+                    Debug.Log($"[VIRUS] ⬇️ Spreading DOWN from {infectedPlant.position} to CHILD {child.position}");
                     child.isInfected = true;
+                    child.phase = PlantBitPhase.FullyInfected;
                     child.InfectionSpread(spreadTimer);
                     GridEvents.PlantUpdated(child.position);
                 }
@@ -388,6 +390,7 @@ namespace Egglers
 
             // Clear coroutine reference since it's done
             infectedPlant.infectionCoroutine = null;
+            Debug.Log($"[VIRUS] Infection coroutine completed at {infectedPlant.position}");
         }
     }
 }
